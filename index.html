@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Values Animation 1</title>
+<style>
+  :root {
+    --fg: #000;
+    --bg: #fff;
+    --muted: #8a8a8a;
+    --line: #e5e5e5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    display: flex;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Sidebar */
+  aside {
+    width: 300px;
+    flex: none;
+    height: 100%;
+    border-right: 1px solid var(--fg);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .block { padding: 24px; border-bottom: 1px solid var(--line); }
+  .block:last-child { border-bottom: none; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
+  .sub { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  h2 {
+    font-size: 11px; font-weight: 400; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); margin-bottom: 14px;
+  }
+
+  ol.states { list-style: none; display: grid; gap: 2px; }
+  ol.states li {
+    display: flex; gap: 12px; align-items: baseline;
+    font-size: 14px; padding: 4px 0; color: var(--muted);
+    cursor: pointer; transition: color .15s;
+  }
+  ol.states li span:first-child { width: 16px; font-variant-numeric: tabular-nums; }
+  ol.states li.active { color: var(--fg); }
+  ol.states li:hover { color: var(--fg); }
+
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: flex; justify-content: space-between;
+    font-size: 13px; margin-bottom: 8px;
+  }
+  .field label output { font-variant-numeric: tabular-nums; color: var(--muted); }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 16px; background: transparent; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 1px; background: var(--fg); }
+  input[type=range]::-moz-range-track { height: 1px; background: var(--fg); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--fg); margin-top: -5.5px; border: none;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 12px; height: 12px; border-radius: 50%; background: var(--fg); border: none;
+  }
+
+  .centred {
+    background: linear-gradient(var(--fg), var(--fg)) center / 1px 9px no-repeat;
+  }
+  .scale {
+    display: flex; justify-content: space-between; margin-top: 4px;
+    font-size: 11px; color: var(--muted);
+  }
+
+  .seg { display: flex; border: 1px solid var(--fg); }
+  .seg button {
+    flex: 1; border: none; background: var(--bg); color: var(--fg);
+    font: inherit; font-size: 12px; padding: 8px 4px; cursor: pointer;
+  }
+  .seg button + button { border-left: 1px solid var(--fg); }
+  .seg button.on { background: var(--fg); color: var(--bg); }
+
+  .colour { display: flex; align-items: center; gap: 10px; }
+  .swatch {
+    flex: none; width: 36px; height: 36px; padding: 0;
+    border: 1px solid var(--fg); cursor: pointer;
+  }
+  .swatch.open { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--fg); }
+
+  /* Colour picker popover */
+  .picker {
+    position: fixed; z-index: 50; width: 232px; padding: 16px;
+    background: var(--bg); border: 1px solid var(--fg);
+    display: none; user-select: none; -webkit-user-select: none;
+  }
+  .picker.show { display: block; }
+  .picker .sv {
+    position: relative; width: 200px; height: 200px; cursor: crosshair;
+    touch-action: none;
+  }
+  .picker .sv::before, .picker .sv::after { content: ""; position: absolute; inset: 0; }
+  .picker .sv::before { background: linear-gradient(to right, #fff, rgba(255,255,255,0)); }
+  .picker .sv::after { background: linear-gradient(to top, #000, rgba(0,0,0,0)); }
+  .picker .hue {
+    position: relative; height: 14px; margin-top: 12px; cursor: pointer; touch-action: none;
+    background: linear-gradient(to right, #f00 0%, #ff0 16.66%, #0f0 33.33%, #0ff 50%, #00f 66.66%, #f0f 83.33%, #f00 100%);
+  }
+  .picker .knob {
+    position: absolute; z-index: 1; width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.6);
+    transform: translate(-50%, -50%); pointer-events: none;
+  }
+  .picker .hue .knob { top: 50%; width: 8px; height: 18px; border-radius: 0; }
+  .picker .row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .picker .row .chip { width: 24px; height: 24px; border: 1px solid var(--fg); flex: none; }
+  .picker .row span { font-size: 13px; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+  .colour input[type=text] {
+    flex: 1; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--fg);
+    font: inherit; font-size: 13px; text-transform: uppercase; color: var(--fg); background: var(--bg);
+  }
+  .colour input[type=text]:focus { outline: none; box-shadow: inset 0 0 0 1px var(--fg); }
+
+  .btn {
+    width: 100%; font: inherit; font-size: 14px; padding: 12px 16px;
+    border: 1px solid var(--fg); background: var(--bg); color: var(--fg);
+    cursor: pointer; text-align: left; display: flex; justify-content: space-between;
+  }
+  .btn.primary { background: var(--fg); color: var(--bg); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn + .btn { margin-top: 8px; }
+
+  .progress { margin-top: 12px; height: 1px; background: var(--line); position: relative; }
+  .progress i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--fg); }
+  .status { margin-top: 10px; font-size: 12px; color: var(--muted); min-height: 15px; }
+
+  /* Stage */
+  main {
+    flex: 1; min-width: 0; height: 100%;
+    display: flex; flex-direction: column;
+  }
+  .stage {
+    flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+    padding: 40px;
+  }
+  canvas#view { display: block; border: 1px solid var(--line); }
+  .timeline {
+    border-top: 1px solid var(--line);
+    padding: 16px 24px; display: flex; align-items: center; gap: 16px;
+    font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .timeline .bar { flex: 1; height: 1px; background: var(--line); position: relative; cursor: pointer; }
+  .timeline .bar::before { content: ""; position: absolute; inset: -8px 0; }
+  .timeline .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--fg); width: 0; }
+  .timeline .ticks span {
+    position: absolute; top: -3px; width: 1px; height: 7px; background: var(--muted);
+  }
+
+  @media (max-width: 760px) {
+    body { flex-direction: column-reverse; }
+    aside { width: 100%; height: auto; border-right: none; border-top: 1px solid var(--fg); }
+    main { height: 60vh; flex: none; }
+    .stage { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="block">
+    <h1>Values Animation 1</h1>
+    <p class="sub">Ten triangles · six states · seamless loop</p>
+  </div>
+
+  <div class="block">
+    <h2>States</h2>
+    <ol class="states" id="states"></ol>
+  </div>
+
+  <div class="block">
+    <h2>Colour</h2>
+    <div class="field">
+      <label>Icon</label>
+      <div class="colour">
+        <button class="swatch" id="fgPick" aria-label="Pick icon colour"></button>
+        <input type="text" id="fgHex" value="#000000" maxlength="7" spellcheck="false">
+      </div>
+    </div>
+    <div class="field">
+      <label>Background</label>
+      <div class="colour">
+        <button class="swatch" id="bgPick" aria-label="Pick background colour"></button>
+        <input type="text" id="bgHex" value="#ffffff" maxlength="7" spellcheck="false">
+      </div>
+    </div>
+    <div class="field">
+      <div class="seg" id="colourActions">
+        <button data-v="swap">Swap</button>
+        <button data-v="reset">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>Motion</h2>
+    <div class="field">
+      <label>Hold <output id="holdOut"></output></label>
+      <input type="range" id="hold" min="0.1" max="2" step="0.05" value="0.6">
+    </div>
+    <div class="field">
+      <label>Transition <output id="transOut"></output></label>
+      <input type="range" id="trans" min="0.2" max="2" step="0.05" value="0.7">
+    </div>
+    <div class="field">
+      <label>Stagger <output id="staggerOut"></output></label>
+      <input type="range" id="stagger" min="0" max="0.06" step="0.005" value="0.02">
+    </div>
+    <div class="field">
+      <label>Spin <output id="spinOut"></output></label>
+      <input type="range" id="spin" class="centred" min="-1" max="1" step="0.01" value="0" title="Double-click to reset">
+      <div class="scale"><span>Less</span><span>More</span></div>
+    </div>
+    <div class="field">
+      <label>Easing</label>
+      <div class="seg" id="easing">
+        <button data-v="expo" class="on">Expo</button>
+        <button data-v="cubic">Cubic</button>
+        <button data-v="back">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>Export</h2>
+    <div class="field">
+      <label>Size</label>
+      <div class="seg" id="size">
+        <button data-v="1080" class="on">1080</button>
+        <button data-v="2160">2160</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Frame rate</label>
+      <div class="seg" id="fps">
+        <button data-v="30">30</button>
+        <button data-v="60" class="on">60</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Loops <output id="loopsOut"></output></label>
+      <input type="range" id="loops" min="1" max="10" step="1" value="1">
+    </div>
+    <button class="btn primary" id="download"><span>Download MP4</span><span>↓</span></button>
+    <div class="progress"><i id="prog"></i></div>
+    <div class="status" id="status"></div>
+  </div>
+</aside>
+
+<div class="picker" id="picker">
+  <div class="sv" id="pkSV"><i class="knob" id="pkSVKnob"></i></div>
+  <div class="hue" id="pkHue"><i class="knob" id="pkHueKnob"></i></div>
+  <div class="row"><i class="chip" id="pkChip"></i><span id="pkHex"></span></div>
+</div>
+
+<main>
+  <div class="stage" id="stage"><canvas id="view"></canvas></div>
+  <div class="timeline">
+    <button class="btn" id="play" style="width:auto;padding:6px 12px;font-size:12px">Pause</button>
+    <span id="time">0.00s</span>
+    <div class="bar" id="bar"><div class="ticks" id="ticks"></div><i id="barFill"></i></div>
+    <span id="dur">0.00s</span>
+  </div>
+</main>
+
+<!-- mp4-muxer 5.1.3 (MIT) — inlined so this file works standalone -->
+<script>"use strict";var Mp4Muxer=(()=>{var e=Object.defineProperty,t=Object.getOwnPropertyDescriptor,i=Object.getOwnPropertyNames,s=Object.prototype.hasOwnProperty,a=(e,t,i)=>{if(!t.has(e))throw TypeError("Cannot "+i)},r=(e,t,i)=>(a(e,t,"read from private field"),i?i.call(e):t.get(e)),n=(e,t,i)=>{if(t.has(e))throw TypeError("Cannot add the same private member more than once");t instanceof WeakSet?t.add(e):t.set(e,i)},o=(e,t,i,s)=>(a(e,t,"write to private field"),s?s.call(e,i):t.set(e,i),i),h=(e,t,i)=>(a(e,t,"access private method"),i),l={};((t,i)=>{for(var s in i)e(t,s,{get:i[s],enumerable:!0})})(l,{ArrayBufferTarget:()=>xe,FileSystemWritableFileStreamTarget:()=>Ee,Muxer:()=>Ut,StreamTarget:()=>ze});var d,f,u,m,p,c,w,g,y=new Uint8Array(8),b=new DataView(y.buffer),k=e=>[(e%256+256)%256],T=e=>(b.setUint16(0,e,!1),[y[0],y[1]]),v=e=>(b.setUint32(0,e,!1),[y[1],y[2],y[3]]),C=e=>(b.setUint32(0,e,!1),[y[0],y[1],y[2],y[3]]),S=e=>(b.setUint32(0,Math.floor(e/2**32),!1),b.setUint32(4,e,!1),[y[0],y[1],y[2],y[3],y[4],y[5],y[6],y[7]]),x=e=>(b.setInt16(0,256*e,!1),[y[0],y[1]]),z=e=>(b.setInt32(0,65536*e,!1),[y[0],y[1],y[2],y[3]]),E=e=>(b.setInt32(0,2**30*e,!1),[y[0],y[1],y[2],y[3]]),A=(e,t=!1)=>{let i=Array(e.length).fill(null).map(((t,i)=>e.charCodeAt(i)));return t&&i.push(0),i},M=e=>e&&e[e.length-1],W=e=>{let t;for(let i of e)(!t||i.presentationTimestamp>t.presentationTimestamp)&&(t=i);return t},O=(e,t,i=!0)=>{let s=e*t;return i?Math.round(s):s},B=e=>{let t=e*(Math.PI/180),i=Math.cos(t),s=Math.sin(t);return[i,s,0,-s,i,0,0,0,1]},U=B(0),j=e=>[z(e[0]),z(e[1]),E(e[2]),z(e[3]),z(e[4]),E(e[5]),z(e[6]),z(e[7]),E(e[8])],D=e=>e?"object"!=typeof e?e:Array.isArray(e)?e.map(D):Object.fromEntries(Object.entries(e).map((([e,t])=>[e,D(t)]))):e,I=e=>e>=0&&e<2**32,R=(e,t,i)=>({type:e,contents:t&&new Uint8Array(t.flat(10)),children:i}),N=(e,t,i,s,a)=>R(e,[k(t),v(i),s??[]],a),V=e=>({type:"mdat",largeSize:e}),L=(e,t,i=!1)=>R("moov",null,[F(t,e),...e.map((e=>$(e,t))),i?le(e):null]),F=(e,t)=>{let i=O(Math.max(0,...t.filter((e=>e.samples.length>0)).map((e=>{const t=W(e.samples);return t.presentationTimestamp+t.duration}))),Mt),s=Math.max(...t.map((e=>e.id)))+1,a=!I(e)||!I(i),r=a?S:C;return N("mvhd",+a,0,[r(e),r(e),C(Mt),r(i),z(1),x(1),Array(10).fill(0),j(U),Array(24).fill(0),C(s)])},$=(e,t)=>R("trak",null,[P(e,t),H(e,t)]),P=(e,t)=>{let i,s=W(e.samples),a=O(s?s.presentationTimestamp+s.duration:0,Mt),r=!I(t)||!I(a),n=r?S:C;return i="video"===e.info.type?"number"==typeof e.info.rotation?B(e.info.rotation):e.info.rotation:U,N("tkhd",+r,3,[n(t),n(t),C(e.id),C(0),n(a),Array(8).fill(0),T(0),T(0),x("audio"===e.info.type?1:0),T(0),j(i),z("video"===e.info.type?e.info.width:0),z("video"===e.info.type?e.info.height:0)])},H=(e,t)=>R("mdia",null,[_(e,t),q("video"===e.info.type?"vide":"soun"),G(e)]),_=(e,t)=>{let i=W(e.samples),s=O(i?i.presentationTimestamp+i.duration:0,e.timescale),a=!I(t)||!I(s),r=a?S:C;return N("mdhd",+a,0,[r(t),r(t),C(e.timescale),r(s),T(21956),T(0)])},q=e=>N("hdlr",0,0,[A("mhlr"),A(e),C(0),C(0),C(0),A("mp4-muxer-hdlr",!0)]),G=e=>R("minf",null,["video"===e.info.type?J():K(),Q(),Z(e)]),J=()=>N("vmhd",0,1,[T(0),T(0),T(0),T(0)]),K=()=>N("smhd",0,0,[T(0),T(0)]),Q=()=>R("dinf",null,[X()]),X=()=>N("dref",0,0,[C(1)],[Y()]),Y=()=>N("url ",0,1),Z=e=>{const t=e.compositionTimeOffsetTable.length>1||e.compositionTimeOffsetTable.some((e=>0!==e.sampleCompositionTimeOffset));return R("stbl",null,[ee(e),se(e),ae(e),re(e),ne(e),oe(e),t?he(e):null])},ee=e=>N("stsd",0,0,[C(1)],["video"===e.info.type?te(ke[e.info.codec],e):ie(ve[e.info.codec],e)]),te=(e,t)=>{return R(e,[Array(6).fill(0),T(1),T(0),T(0),Array(12).fill(0),T(t.info.width),T(t.info.height),C(4718592),C(4718592),C(0),T(1),Array(32).fill(0),T(24),(i=65535,b.setInt16(0,i,!1),[y[0],y[1]])],[Te[t.info.codec](t)]);var i},ie=(e,t)=>R(e,[Array(6).fill(0),T(1),T(0),T(0),C(0),T(t.info.numberOfChannels),T(16),T(0),T(0),z(t.info.sampleRate)],[Ce[t.info.codec](t)]),se=e=>N("stts",0,0,[C(e.timeToSampleTable.length),e.timeToSampleTable.map((e=>[C(e.sampleCount),C(e.sampleDelta)]))]),ae=e=>{if(e.samples.every((e=>"key"===e.type)))return null;let t=[...e.samples.entries()].filter((([,e])=>"key"===e.type));return N("stss",0,0,[C(t.length),t.map((([e])=>C(e+1)))])},re=e=>N("stsc",0,0,[C(e.compactlyCodedChunkTable.length),e.compactlyCodedChunkTable.map((e=>[C(e.firstChunk),C(e.samplesPerChunk),C(1)]))]),ne=e=>N("stsz",0,0,[C(0),C(e.samples.length),e.samples.map((e=>C(e.size)))]),oe=e=>e.finalizedChunks.length>0&&M(e.finalizedChunks).offset>=2**32?N("co64",0,0,[C(e.finalizedChunks.length),e.finalizedChunks.map((e=>S(e.offset)))]):N("stco",0,0,[C(e.finalizedChunks.length),e.finalizedChunks.map((e=>C(e.offset)))]),he=e=>N("ctts",0,0,[C(e.compositionTimeOffsetTable.length),e.compositionTimeOffsetTable.map((e=>[C(e.sampleCount),C(e.sampleCompositionTimeOffset)]))]),le=e=>R("mvex",null,e.map(de)),de=e=>N("trex",0,0,[C(e.id),C(1),C(0),C(0),C(0)]),fe=(e,t)=>R("moof",null,[ue(e),...t.map(pe)]),ue=e=>N("mfhd",0,0,[C(e)]),me=e=>{let t=0,i=0,s="delta"===e.type;return i|=+s,t|=s?1:2,t<<24|i<<16},pe=e=>R("traf",null,[ce(e),we(e),ge(e)]),ce=e=>{let t=0;t|=8,t|=16,t|=32,t|=131072;let i=e.currentChunk.samples[1]??e.currentChunk.samples[0],s={duration:i.timescaleUnitsToNextSample,size:i.size,flags:me(i)};return N("tfhd",0,131128,[C(e.id),C(s.duration),C(s.size),C(s.flags)])},we=e=>N("tfdt",1,0,[S(O(e.currentChunk.startTimestamp,e.timescale))]),ge=e=>{let t=e.currentChunk.samples.map((e=>e.timescaleUnitsToNextSample)),i=e.currentChunk.samples.map((e=>e.size)),s=e.currentChunk.samples.map(me),a=e.currentChunk.samples.map((t=>O(t.presentationTimestamp-t.decodeTimestamp,e.timescale))),r=new Set(t),n=new Set(i),o=new Set(s),h=new Set(a),l=2===o.size&&s[0]!==s[1],d=r.size>1,f=n.size>1,u=!l&&o.size>1,m=h.size>1||[...h].some((e=>0!==e)),p=0;return p|=1,p|=4*+l,p|=256*+d,p|=512*+f,p|=1024*+u,p|=2048*+m,N("trun",1,p,[C(e.currentChunk.samples.length),C(e.currentChunk.offset-e.currentChunk.moofOffset||0),l?C(s[0]):[],e.currentChunk.samples.map(((e,r)=>{return[d?C(t[r]):[],f?C(i[r]):[],u?C(s[r]):[],m?(n=a[r],b.setInt32(0,n,!1),[y[0],y[1],y[2],y[3]]):[]];var n}))])},ye=(e,t)=>N("tfra",1,0,[C(e.id),C(63),C(e.finalizedChunks.length),e.finalizedChunks.map((i=>[S(O(i.startTimestamp,e.timescale)),S(i.moofOffset),C(t+1),C(1),C(1)]))]),be=()=>N("mfro",0,0,[C(0)]),ke={avc:"avc1",hevc:"hvc1",vp9:"vp09",av1:"av01"},Te={avc:e=>e.info.decoderConfig&&R("avcC",[...new Uint8Array(e.info.decoderConfig.description)]),hevc:e=>e.info.decoderConfig&&R("hvcC",[...new Uint8Array(e.info.decoderConfig.description)]),vp9:e=>{if(!e.info.decoderConfig)return null;let t=e.info.decoderConfig;if(!t.colorSpace)throw new Error("'colorSpace' is required in the decoder config for VP9.");let i=t.codec.split("."),s=Number(i[1]),a=Number(i[2]),r=0+(Number(i[3])<<4)+Number(t.colorSpace.fullRange);return N("vpcC",1,0,[k(s),k(a),k(r),k(2),k(2),k(2),T(0)])},av1:()=>R("av1C",[129,0,0,0])},ve={aac:"mp4a",opus:"Opus"},Ce={aac:e=>{let t=new Uint8Array(e.info.decoderConfig.description);return N("esds",0,0,[C(58753152),k(32+t.byteLength),T(1),k(0),C(75530368),k(18+t.byteLength),k(64),k(21),v(0),C(130071),C(130071),C(92307584),k(t.byteLength),...t,C(109084800),k(1),k(2)])},opus:e=>{let t=3840,i=0;const s=e.info.decoderConfig?.description;if(s){if(s.byteLength<18)throw new TypeError("Invalid decoder description provided for Opus; must be at least 18 bytes long.");const e=ArrayBuffer.isView(s)?new DataView(s.buffer,s.byteOffset,s.byteLength):new DataView(s);t=e.getUint16(10,!0),i=e.getInt16(14,!0)}return R("dOps",[k(0),k(e.info.numberOfChannels),T(t),C(e.info.sampleRate),x(i),k(0)])}},Se=(Symbol("isTarget"),class{}),xe=class extends Se{constructor(){super(...arguments),this.buffer=null}},ze=class extends Se{constructor(e){if(super(),this.options=e,"object"!=typeof e)throw new TypeError("StreamTarget requires an options object to be passed to its constructor.");if(e.onData){if("function"!=typeof e.onData)throw new TypeError("options.onData, when provided, must be a function.");if(e.onData.length<2)throw new TypeError("options.onData, when provided, must be a function that takes in at least two arguments (data and position). Ignoring the position argument, which specifies the byte offset at which the data is to be written, can lead to broken outputs.")}if(void 0!==e.chunked&&"boolean"!=typeof e.chunked)throw new TypeError("options.chunked, when provided, must be a boolean.");if(void 0!==e.chunkSize&&(!Number.isInteger(e.chunkSize)||e.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer.")}},Ee=class extends Se{constructor(e,t){if(super(),this.stream=e,this.options=t,!(e instanceof FileSystemWritableFileStream))throw new TypeError("FileSystemWritableFileStreamTarget requires a FileSystemWritableFileStream instance.");if(void 0!==t&&"object"!=typeof t)throw new TypeError("FileSystemWritableFileStreamTarget's options, when provided, must be an object.");if(t&&void 0!==t.chunkSize&&(!Number.isInteger(t.chunkSize)||t.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer")}},Ae=class{constructor(){this.pos=0,n(this,d,new Uint8Array(8)),n(this,f,new DataView(r(this,d).buffer)),this.offsets=new WeakMap}seek(e){this.pos=e}writeU32(e){r(this,f).setUint32(0,e,!1),this.write(r(this,d).subarray(0,4))}writeU64(e){r(this,f).setUint32(0,Math.floor(e/2**32),!1),r(this,f).setUint32(4,e,!1),this.write(r(this,d).subarray(0,8))}writeAscii(e){for(let t=0;t<e.length;t++)r(this,f).setUint8(t%8,e.charCodeAt(t)),t%8==7&&this.write(r(this,d));e.length%8!=0&&this.write(r(this,d).subarray(0,e.length%8))}writeBox(e){if(this.offsets.set(e,this.pos),e.contents&&!e.children)this.writeBoxHeader(e,e.size??e.contents.byteLength+8),this.write(e.contents);else{let t=this.pos;if(this.writeBoxHeader(e,0),e.contents&&this.write(e.contents),e.children)for(let t of e.children)t&&this.writeBox(t);let i=this.pos,s=e.size??i-t;this.seek(t),this.writeBoxHeader(e,s),this.seek(i)}}writeBoxHeader(e,t){this.writeU32(e.largeSize?1:t),this.writeAscii(e.type),e.largeSize&&this.writeU64(t)}measureBoxHeader(e){return 8+(e.largeSize?8:0)}patchBox(e){let t=this.pos;this.seek(this.offsets.get(e)),this.writeBox(e),this.seek(t)}measureBox(e){if(e.contents&&!e.children){return this.measureBoxHeader(e)+e.contents.byteLength}{let t=this.measureBoxHeader(e);if(e.contents&&(t+=e.contents.byteLength),e.children)for(let i of e.children)i&&(t+=this.measureBox(i));return t}}};d=new WeakMap,f=new WeakMap;var Me,We,Oe=class extends Ae{constructor(e){super(),n(this,w),n(this,u,void 0),n(this,m,new ArrayBuffer(65536)),n(this,p,new Uint8Array(r(this,m))),n(this,c,0),o(this,u,e)}write(e){h(this,w,g).call(this,this.pos+e.byteLength),r(this,p).set(e,this.pos),this.pos+=e.byteLength,o(this,c,Math.max(r(this,c),this.pos))}finalize(){h(this,w,g).call(this,this.pos),r(this,u).buffer=r(this,m).slice(0,Math.max(r(this,c),this.pos))}};u=new WeakMap,m=new WeakMap,p=new WeakMap,c=new WeakMap,w=new WeakSet,g=function(e){let t=r(this,m).byteLength;for(;t<e;)t*=2;if(t===r(this,m).byteLength)return;let i=new ArrayBuffer(t),s=new Uint8Array(i);s.set(r(this,p),0),o(this,m,i),o(this,p,s)};var Be=class extends Ae{constructor(e){super(),n(this,Me,void 0),n(this,We,[]),o(this,Me,e)}write(e){r(this,We).push({data:e.slice(),start:this.pos}),this.pos+=e.byteLength}flush(){if(0===r(this,We).length)return;let e=[],t=[...r(this,We)].sort(((e,t)=>e.start-t.start));e.push({start:t[0].start,size:t[0].data.byteLength});for(let i=1;i<t.length;i++){let s=e[e.length-1],a=t[i];a.start<=s.start+s.size?s.size=Math.max(s.size,a.start+a.data.byteLength-s.start):e.push({start:a.start,size:a.data.byteLength})}for(let t of e){t.data=new Uint8Array(t.size);for(let e of r(this,We))t.start<=e.start&&e.start<t.start+t.size&&t.data.set(e.data,e.start-t.start);r(this,Me).options.onData?.(t.data,t.start)}r(this,We).length=0}finalize(){}};Me=new WeakMap,We=new WeakMap;var Ue,je,De,Ie,Re,Ne,Ve,Le,Fe,$e,Pe,He=class extends Ae{constructor(e){if(super(),n(this,Ie),n(this,Ne),n(this,Le),n(this,$e),n(this,Ue,void 0),n(this,je,void 0),n(this,De,[]),o(this,Ue,e),o(this,je,e.options?.chunkSize??16777216),!Number.isInteger(r(this,je))||r(this,je)<1024)throw new Error("Invalid StreamTarget options: chunkSize must be an integer not smaller than 1024.")}write(e){h(this,Ie,Re).call(this,e,this.pos),h(this,$e,Pe).call(this),this.pos+=e.byteLength}finalize(){h(this,$e,Pe).call(this,!0)}};Ue=new WeakMap,je=new WeakMap,De=new WeakMap,Ie=new WeakSet,Re=function(e,t){let i=r(this,De).findIndex((e=>e.start<=t&&t<e.start+r(this,je)));-1===i&&(i=h(this,Le,Fe).call(this,t));let s=r(this,De)[i],a=t-s.start,n=e.subarray(0,Math.min(r(this,je)-a,e.byteLength));s.data.set(n,a);let o={start:a,end:a+n.byteLength};if(h(this,Ne,Ve).call(this,s,o),0===s.written[0].start&&s.written[0].end===r(this,je)&&(s.shouldFlush=!0),r(this,De).length>2){for(let e=0;e<r(this,De).length-1;e++)r(this,De)[e].shouldFlush=!0;h(this,$e,Pe).call(this)}n.byteLength<e.byteLength&&h(this,Ie,Re).call(this,e.subarray(n.byteLength),t+n.byteLength)},Ne=new WeakSet,Ve=function(e,t){let i=0,s=e.written.length-1,a=-1;for(;i<=s;){let r=Math.floor(i+(s-i+1)/2);e.written[r].start<=t.start?(i=r+1,a=r):s=r-1}for(e.written.splice(a+1,0,t),(-1===a||e.written[a].end<t.start)&&a++;a<e.written.length-1&&e.written[a].end>=e.written[a+1].start;)e.written[a].end=Math.max(e.written[a].end,e.written[a+1].end),e.written.splice(a+1,1)},Le=new WeakSet,Fe=function(e){let t={start:Math.floor(e/r(this,je))*r(this,je),data:new Uint8Array(r(this,je)),written:[],shouldFlush:!1};return r(this,De).push(t),r(this,De).sort(((e,t)=>e.start-t.start)),r(this,De).indexOf(t)},$e=new WeakSet,Pe=function(e=!1){for(let t=0;t<r(this,De).length;t++){let i=r(this,De)[t];if(i.shouldFlush||e){for(let e of i.written)r(this,Ue).options.onData?.(i.data.subarray(e.start,e.end),i.start+e.start);r(this,De).splice(t--,1)}}};var _e,qe,Ge,Je,Ke,Qe,Xe,Ye,Ze,et,tt,it,st,at,rt,nt,ot,ht,lt,dt,ft,ut,mt,pt,ct,wt,gt,yt,bt,kt,Tt,vt,Ct,St,xt,zt,Et,At=class extends He{constructor(e){super(new ze({onData:(t,i)=>e.stream.write({type:"write",data:t,position:i}),chunkSize:e.options?.chunkSize}))}},Mt=1e3,Wt=["avc","hevc","vp9","av1"],Ot=["aac","opus"],Bt=["strict","offset","cross-track-offset"],Ut=class{constructor(e){if(n(this,st),n(this,rt),n(this,ot),n(this,lt),n(this,ft),n(this,mt),n(this,ct),n(this,gt),n(this,bt),n(this,Tt),n(this,Ct),n(this,xt),n(this,_e,void 0),n(this,qe,void 0),n(this,Ge,void 0),n(this,Je,void 0),n(this,Ke,null),n(this,Qe,null),n(this,Xe,Math.floor(Date.now()/1e3)+2082844800),n(this,Ye,[]),n(this,Ze,1),n(this,et,[]),n(this,tt,[]),n(this,it,!1),h(this,st,at).call(this,e),e.video=D(e.video),e.audio=D(e.audio),e.fastStart=D(e.fastStart),this.target=e.target,o(this,_e,{firstTimestampBehavior:"strict",...e}),e.target instanceof xe)o(this,qe,new Oe(e.target));else if(e.target instanceof ze)o(this,qe,e.target.options?.chunked?new He(e.target):new Be(e.target));else{if(!(e.target instanceof Ee))throw new Error(`Invalid target: ${e.target}`);o(this,qe,new At(e.target))}h(this,lt,dt).call(this),h(this,rt,nt).call(this)}addVideoChunk(e,t,i,s){if(!(e instanceof EncodedVideoChunk))throw new TypeError("addVideoChunk's first argument (sample) must be of type EncodedVideoChunk.");if(t&&"object"!=typeof t)throw new TypeError("addVideoChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addVideoChunk's third argument (timestamp), when provided, must be a non-negative real number.");if(void 0!==s&&!Number.isFinite(s))throw new TypeError("addVideoChunk's fourth argument (compositionTimeOffset), when provided, must be a real number.");let a=new Uint8Array(e.byteLength);e.copyTo(a),this.addVideoChunkRaw(a,e.type,i??e.timestamp,e.duration,t,s)}addVideoChunkRaw(e,t,i,s,a,n){if(!(e instanceof Uint8Array))throw new TypeError("addVideoChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addVideoChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addVideoChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addVideoChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addVideoChunkRaw's fifth argument (meta), when provided, must be an object.");if(void 0!==n&&!Number.isFinite(n))throw new TypeError("addVideoChunkRaw's sixth argument (compositionTimeOffset), when provided, must be a real number.");if(h(this,xt,zt).call(this),!r(this,_e).video)throw new Error("No video track declared.");if("object"==typeof r(this,_e).fastStart&&r(this,Ke).samples.length===r(this,_e).fastStart.expectedVideoChunks)throw new Error(`Cannot add more video chunks than specified in 'fastStart' (${r(this,_e).fastStart.expectedVideoChunks}).`);let o=h(this,mt,pt).call(this,r(this,Ke),e,t,i,s,a,n);if("fragmented"===r(this,_e).fastStart&&r(this,Qe)){for(;r(this,tt).length>0&&r(this,tt)[0].decodeTimestamp<=o.decodeTimestamp;){let e=r(this,tt).shift();h(this,ct,wt).call(this,r(this,Qe),e)}o.decodeTimestamp<=r(this,Qe).lastDecodeTimestamp?h(this,ct,wt).call(this,r(this,Ke),o):r(this,et).push(o)}else h(this,ct,wt).call(this,r(this,Ke),o)}addAudioChunk(e,t,i){if(!(e instanceof EncodedAudioChunk))throw new TypeError("addAudioChunk's first argument (sample) must be of type EncodedAudioChunk.");if(t&&"object"!=typeof t)throw new TypeError("addAudioChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addAudioChunk's third argument (timestamp), when provided, must be a non-negative real number.");let s=new Uint8Array(e.byteLength);e.copyTo(s),this.addAudioChunkRaw(s,e.type,i??e.timestamp,e.duration,t)}addAudioChunkRaw(e,t,i,s,a){if(!(e instanceof Uint8Array))throw new TypeError("addAudioChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addAudioChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addAudioChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addAudioChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addAudioChunkRaw's fifth argument (meta), when provided, must be an object.");if(h(this,xt,zt).call(this),!r(this,_e).audio)throw new Error("No audio track declared.");if("object"==typeof r(this,_e).fastStart&&r(this,Qe).samples.length===r(this,_e).fastStart.expectedAudioChunks)throw new Error(`Cannot add more audio chunks than specified in 'fastStart' (${r(this,_e).fastStart.expectedAudioChunks}).`);let n=h(this,mt,pt).call(this,r(this,Qe),e,t,i,s,a);if("fragmented"===r(this,_e).fastStart&&r(this,Ke)){for(;r(this,et).length>0&&r(this,et)[0].decodeTimestamp<=n.decodeTimestamp;){let e=r(this,et).shift();h(this,ct,wt).call(this,r(this,Ke),e)}n.decodeTimestamp<=r(this,Ke).lastDecodeTimestamp?h(this,ct,wt).call(this,r(this,Qe),n):r(this,tt).push(n)}else h(this,ct,wt).call(this,r(this,Qe),n)}finalize(){if(r(this,it))throw new Error("Cannot finalize a muxer more than once.");if("fragmented"===r(this,_e).fastStart){for(let e of r(this,et))h(this,ct,wt).call(this,r(this,Ke),e);for(let e of r(this,tt))h(this,ct,wt).call(this,r(this,Qe),e);h(this,Tt,vt).call(this,!1)}else r(this,Ke)&&h(this,bt,kt).call(this,r(this,Ke)),r(this,Qe)&&h(this,bt,kt).call(this,r(this,Qe));let e=[r(this,Ke),r(this,Qe)].filter(Boolean);if("in-memory"===r(this,_e).fastStart){let t;for(let i=0;i<2;i++){let i=L(e,r(this,Xe)),s=r(this,qe).measureBox(i);t=r(this,qe).measureBox(r(this,Je));let a=r(this,qe).pos+s+t;for(let e of r(this,Ye)){e.offset=a;for(let{data:i}of e.samples)a+=i.byteLength,t+=i.byteLength}if(a<2**32)break;t>=2**32&&(r(this,Je).largeSize=!0)}let i=L(e,r(this,Xe));r(this,qe).writeBox(i),r(this,Je).size=t,r(this,qe).writeBox(r(this,Je));for(let e of r(this,Ye))for(let t of e.samples)r(this,qe).write(t.data),t.data=null}else if("fragmented"===r(this,_e).fastStart){let t=r(this,qe).pos,i=(e=>R("mfra",null,[...e.map(ye),be()]))(e);r(this,qe).writeBox(i);let s=r(this,qe).pos-t;r(this,qe).seek(r(this,qe).pos-4),r(this,qe).writeU32(s)}else{let t=r(this,qe).offsets.get(r(this,Je)),i=r(this,qe).pos-t;r(this,Je).size=i,r(this,Je).largeSize=i>=2**32,r(this,qe).patchBox(r(this,Je));let s=L(e,r(this,Xe));if("object"==typeof r(this,_e).fastStart){r(this,qe).seek(r(this,Ge)),r(this,qe).writeBox(s);let e=t-r(this,qe).pos;r(this,qe).writeBox({type:"free",size:e})}else r(this,qe).writeBox(s)}h(this,Ct,St).call(this),r(this,qe).finalize(),o(this,it,!0)}};return _e=new WeakMap,qe=new WeakMap,Ge=new WeakMap,Je=new WeakMap,Ke=new WeakMap,Qe=new WeakMap,Xe=new WeakMap,Ye=new WeakMap,Ze=new WeakMap,et=new WeakMap,tt=new WeakMap,it=new WeakMap,st=new WeakSet,at=function(e){if("object"!=typeof e)throw new TypeError("The muxer requires an options object to be passed to its constructor.");if(!(e.target instanceof Se))throw new TypeError("The target must be provided and an instance of Target.");if(e.video){if(!Wt.includes(e.video.codec))throw new TypeError(`Unsupported video codec: ${e.video.codec}`);if(!Number.isInteger(e.video.width)||e.video.width<=0)throw new TypeError(`Invalid video width: ${e.video.width}. Must be a positive integer.`);if(!Number.isInteger(e.video.height)||e.video.height<=0)throw new TypeError(`Invalid video height: ${e.video.height}. Must be a positive integer.`);const t=e.video.rotation;if("number"==typeof t&&![0,90,180,270].includes(t))throw new TypeError(`Invalid video rotation: ${t}. Has to be 0, 90, 180 or 270.`);if(Array.isArray(t)&&(9!==t.length||t.some((e=>"number"!=typeof e))))throw new TypeError(`Invalid video transformation matrix: ${t.join()}`);if(void 0!==e.video.frameRate&&(!Number.isInteger(e.video.frameRate)||e.video.frameRate<=0))throw new TypeError(`Invalid video frame rate: ${e.video.frameRate}. Must be a positive integer.`)}if(e.audio){if(!Ot.includes(e.audio.codec))throw new TypeError(`Unsupported audio codec: ${e.audio.codec}`);if(!Number.isInteger(e.audio.numberOfChannels)||e.audio.numberOfChannels<=0)throw new TypeError(`Invalid number of audio channels: ${e.audio.numberOfChannels}. Must be a positive integer.`);if(!Number.isInteger(e.audio.sampleRate)||e.audio.sampleRate<=0)throw new TypeError(`Invalid audio sample rate: ${e.audio.sampleRate}. Must be a positive integer.`)}if(e.firstTimestampBehavior&&!Bt.includes(e.firstTimestampBehavior))throw new TypeError(`Invalid first timestamp behavior: ${e.firstTimestampBehavior}`);if("object"==typeof e.fastStart){if(e.video){if(void 0===e.fastStart.expectedVideoChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedVideoChunks'.");if(!Number.isInteger(e.fastStart.expectedVideoChunks)||e.fastStart.expectedVideoChunks<0)throw new TypeError("'expectedVideoChunks' must be a non-negative integer.")}if(e.audio){if(void 0===e.fastStart.expectedAudioChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedAudioChunks'.");if(!Number.isInteger(e.fastStart.expectedAudioChunks)||e.fastStart.expectedAudioChunks<0)throw new TypeError("'expectedAudioChunks' must be a non-negative integer.")}}else if(![!1,"in-memory","fragmented"].includes(e.fastStart))throw new TypeError("'fastStart' option must be false, 'in-memory', 'fragmented' or an object.")},rt=new WeakSet,nt=function(){var e;if(r(this,qe).writeBox((e={holdsAvc:"avc"===r(this,_e).video?.codec,fragmented:"fragmented"===r(this,_e).fastStart}).fragmented?R("ftyp",[A("iso5"),C(512),A("iso5"),A("iso6"),A("mp41")]):R("ftyp",[A("isom"),C(512),A("isom"),e.holdsAvc?A("avc1"):[],A("mp41")])),o(this,Ge,r(this,qe).pos),"in-memory"===r(this,_e).fastStart)o(this,Je,V(!1));else if("fragmented"===r(this,_e).fastStart);else{if("object"==typeof r(this,_e).fastStart){let e=h(this,ot,ht).call(this);r(this,qe).seek(r(this,qe).pos+e)}o(this,Je,V(!0)),r(this,qe).writeBox(r(this,Je))}h(this,Ct,St).call(this)},ot=new WeakSet,ht=function(){if("object"!=typeof r(this,_e).fastStart)return;let e=0,t=[r(this,_e).fastStart.expectedVideoChunks,r(this,_e).fastStart.expectedAudioChunks];for(let i of t)i&&(e+=8*Math.ceil(2/3*i),e+=4*i,e+=12*Math.ceil(2/3*i),e+=4*i,e+=8*i);return e+=4096,e},lt=new WeakSet,dt=function(){if(r(this,_e).video&&o(this,Ke,{id:1,info:{type:"video",codec:r(this,_e).video.codec,width:r(this,_e).video.width,height:r(this,_e).video.height,rotation:r(this,_e).video.rotation??0,decoderConfig:null},timescale:r(this,_e).video.frameRate??57600,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),r(this,_e).audio&&(o(this,Qe,{id:r(this,_e).video?2:1,info:{type:"audio",codec:r(this,_e).audio.codec,numberOfChannels:r(this,_e).audio.numberOfChannels,sampleRate:r(this,_e).audio.sampleRate,decoderConfig:null},timescale:r(this,_e).audio.sampleRate,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),"aac"===r(this,_e).audio.codec)){let e=h(this,ft,ut).call(this,2,r(this,_e).audio.sampleRate,r(this,_e).audio.numberOfChannels);r(this,Qe).info.decoderConfig={codec:r(this,_e).audio.codec,description:e,numberOfChannels:r(this,_e).audio.numberOfChannels,sampleRate:r(this,_e).audio.sampleRate}}},ft=new WeakSet,ut=function(e,t,i){let s=[96e3,88200,64e3,48e3,44100,32e3,24e3,22050,16e3,12e3,11025,8e3,7350].indexOf(t),a=i,r="";r+=e.toString(2).padStart(5,"0"),r+=s.toString(2).padStart(4,"0"),15===s&&(r+=t.toString(2).padStart(24,"0")),r+=a.toString(2).padStart(4,"0");let n=8*Math.ceil(r.length/8);r=r.padEnd(n,"0");let o=new Uint8Array(r.length/8);for(let e=0;e<r.length;e+=8)o[e/8]=parseInt(r.slice(e,e+8),2);return o},mt=new WeakSet,pt=function(e,t,i,s,a,r,n){let o=s/1e6,l=(s-(n??0))/1e6,d=a/1e6,f=h(this,gt,yt).call(this,o,l,e);return o=f.presentationTimestamp,l=f.decodeTimestamp,r?.decoderConfig&&(null===e.info.decoderConfig?e.info.decoderConfig=r.decoderConfig:Object.assign(e.info.decoderConfig,r.decoderConfig)),{presentationTimestamp:o,decodeTimestamp:l,duration:d,data:t,size:t.byteLength,type:i,timescaleUnitsToNextSample:O(d,e.timescale)}},ct=new WeakSet,wt=function(e,t){"fragmented"!==r(this,_e).fastStart&&e.samples.push(t);const i=O(t.presentationTimestamp-t.decodeTimestamp,e.timescale);if(null!==e.lastTimescaleUnits){let s=O(t.decodeTimestamp,e.timescale,!1),a=Math.round(s-e.lastTimescaleUnits);if(e.lastTimescaleUnits+=a,e.lastSample.timescaleUnitsToNextSample=a,"fragmented"!==r(this,_e).fastStart){let t=M(e.timeToSampleTable);1===t.sampleCount?(t.sampleDelta=a,t.sampleCount++):t.sampleDelta===a?t.sampleCount++:(t.sampleCount--,e.timeToSampleTable.push({sampleCount:2,sampleDelta:a}));const s=M(e.compositionTimeOffsetTable);s.sampleCompositionTimeOffset===i?s.sampleCount++:e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i})}}else e.lastTimescaleUnits=0,"fragmented"!==r(this,_e).fastStart&&(e.timeToSampleTable.push({sampleCount:1,sampleDelta:O(t.duration,e.timescale)}),e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i}));e.lastSample=t;let s=!1;if(e.currentChunk){let i=t.presentationTimestamp-e.currentChunk.startTimestamp;if("fragmented"===r(this,_e).fastStart){e===(r(this,Ke)??r(this,Qe))&&"key"===t.type&&i>=1&&(s=!0,h(this,Tt,vt).call(this))}else s=i>=.5}else s=!0;s&&(e.currentChunk&&h(this,bt,kt).call(this,e),e.currentChunk={startTimestamp:t.presentationTimestamp,samples:[]}),e.currentChunk.samples.push(t)},gt=new WeakSet,yt=function(e,t,i){const s="strict"===r(this,_e).firstTimestampBehavior,a=-1===i.lastDecodeTimestamp;if(s&&a&&0!==t)throw new Error(`The first chunk for your media track must have a timestamp of 0 (received DTS=${t}).Non-zero first timestamps are often caused by directly piping frames or audio data from a MediaStreamTrack into the encoder. Their timestamps are typically relative to the age of thedocument, which is probably what you want.\n\nIf you want to offset all timestamps of a track such that the first one is zero, set firstTimestampBehavior: 'offset' in the options.\n`);if("offset"===r(this,_e).firstTimestampBehavior||"cross-track-offset"===r(this,_e).firstTimestampBehavior){let s;void 0===i.firstDecodeTimestamp&&(i.firstDecodeTimestamp=t),s="offset"===r(this,_e).firstTimestampBehavior?i.firstDecodeTimestamp:Math.min(r(this,Ke)?.firstDecodeTimestamp??1/0,r(this,Qe)?.firstDecodeTimestamp??1/0),t-=s,e-=s}if(t<i.lastDecodeTimestamp)throw new Error(`Timestamps must be monotonically increasing (DTS went from ${1e6*i.lastDecodeTimestamp} to ${1e6*t}).`);return i.lastDecodeTimestamp=t,{presentationTimestamp:e,decodeTimestamp:t}},bt=new WeakSet,kt=function(e){if("fragmented"===r(this,_e).fastStart)throw new Error("Can't finalize individual chunks if 'fastStart' is set to 'fragmented'.");if(e.currentChunk)if(e.finalizedChunks.push(e.currentChunk),r(this,Ye).push(e.currentChunk),0!==e.compactlyCodedChunkTable.length&&M(e.compactlyCodedChunkTable).samplesPerChunk===e.currentChunk.samples.length||e.compactlyCodedChunkTable.push({firstChunk:e.finalizedChunks.length,samplesPerChunk:e.currentChunk.samples.length}),"in-memory"!==r(this,_e).fastStart){e.currentChunk.offset=r(this,qe).pos;for(let t of e.currentChunk.samples)r(this,qe).write(t.data),t.data=null;h(this,Ct,St).call(this)}else e.currentChunk.offset=0},Tt=new WeakSet,vt=function(e=!0){if("fragmented"!==r(this,_e).fastStart)throw new Error("Can't finalize a fragment unless 'fastStart' is set to 'fragmented'.");let t=[r(this,Ke),r(this,Qe)].filter((e=>e&&e.currentChunk));if(0===t.length)return;let i=(s=this,a=Ze,{set _(e){o(s,a,e,n)},get _(){return r(s,a,l)}})._++;var s,a,n,l;if(1===i){let e=L(t,r(this,Xe),!0);r(this,qe).writeBox(e)}let d=r(this,qe).pos,f=fe(i,t);r(this,qe).writeBox(f);{let e=V(!1),i=0;for(let e of t)for(let t of e.currentChunk.samples)i+=t.size;let s=r(this,qe).measureBox(e)+i;s>=2**32&&(e.largeSize=!0,s=r(this,qe).measureBox(e)+i),e.size=s,r(this,qe).writeBox(e)}for(let e of t){e.currentChunk.offset=r(this,qe).pos,e.currentChunk.moofOffset=d;for(let t of e.currentChunk.samples)r(this,qe).write(t.data),t.data=null}let u=r(this,qe).pos;r(this,qe).seek(r(this,qe).offsets.get(f));let m=fe(i,t);r(this,qe).writeBox(m),r(this,qe).seek(u);for(let e of t)e.finalizedChunks.push(e.currentChunk),r(this,Ye).push(e.currentChunk),e.currentChunk=null;e&&h(this,Ct,St).call(this)},Ct=new WeakSet,St=function(){r(this,qe)instanceof Be&&r(this,qe).flush()},xt=new WeakSet,zt=function(){if(r(this,it))throw new Error("Cannot add new video or audio chunks after the file has been finalized.")},Et=l,((a,r,n,o)=>{if(r&&"object"==typeof r||"function"==typeof r)for(let h of i(r))s.call(a,h)||h===n||e(a,h,{get:()=>r[h],enumerable:!(o=t(r,h))||o.enumerable});return a})(e({},"__esModule",{value:!0}),Et)})();"object"==typeof module&&"object"==typeof module.exports&&Object.assign(module.exports,Mp4Muxer);
+//# sourceMappingURL=/sm/2d65509620dc68a5b97bc1c90bf2b2165147c6e410efb5392995ca68167616ab.map</script>
+<script>
+// ---------------------------------------------------------------------------
+// Icon data — taken from Figma (THEF-TenTriangles / Core Values). Each icon is
+// a 1000×1000 frame built from ten right-isosceles triangles (legs = 200),
+// named 1–10 consistently across frames so each triangle can be tracked.
+// ---------------------------------------------------------------------------
+const STATES = [
+  { name: 'TheF', tris: {
+    1:[[300,300],[300,500],[500,300]], 2:[[500,500],[500,300],[300,500]],
+    3:[[500,100],[500,300],[700,100]], 4:[[700,300],[700,100],[500,300]],
+    5:[[500,300],[500,100],[300,300]], 6:[[500,700],[500,500],[300,700]],
+    7:[[500,500],[500,700],[700,500]], 8:[[700,700],[700,500],[500,700]],
+    9:[[300,700],[300,900],[500,700]], 10:[[500,900],[500,700],[300,900]] } },
+  { name: 'Clarity', tris: {
+    1:[[400,200],[400,400],[600,200]], 2:[[600,400],[600,200],[400,400]],
+    3:[[600,200],[600,400],[800,200]], 4:[[800,400],[800,200],[600,400]],
+    5:[[400,400],[400,600],[600,400]], 6:[[600,600],[600,400],[400,600]],
+    7:[[600,400],[600,600],[800,400]], 8:[[800,600],[800,400],[600,600]],
+    9:[[200,600],[200,800],[400,600]], 10:[[400,800],[400,600],[200,800]] } },
+  { name: 'Proximity', tris: {
+    1:[[400,400],[400,200],[200,400]], 2:[[600,600],[600,400],[400,600]],
+    3:[[400,200],[400,400],[600,200]], 4:[[600,400],[600,200],[400,400]],
+    5:[[400,600],[400,800],[600,600]], 6:[[600,800],[600,600],[400,800]],
+    7:[[600,400],[600,600],[800,400]], 8:[[800,600],[800,400],[600,600]],
+    9:[[200,400],[200,600],[400,400]], 10:[[400,600],[400,400],[200,600]] } },
+  { name: 'Imagination', tris: {
+    1:[[600,400],[600,200],[400,400]], 2:[[400,400],[400,200],[200,400]],
+    3:[[600,200],[600,400],[800,200]], 4:[[800,400],[800,200],[600,400]],
+    5:[[400,400],[200,400],[400,600]], 6:[[400,600],[400,800],[600,600]],
+    7:[[600,400],[600,600],[800,400]], 8:[[800,600],[800,400],[600,600]],
+    9:[[400,200],[400,400],[600,200]], 10:[[200,200],[200,400],[400,200]] } },
+  { name: 'Empathy', tris: {
+    1:[[300,400],[100,400],[300,600]], 2:[[300,400],[300,200],[100,400]],
+    3:[[500,600],[500,400],[300,600]], 4:[[700,400],[500,400],[700,600]],
+    5:[[300,400],[500,400],[300,200]], 6:[[700,400],[900,400],[700,200]],
+    7:[[700,400],[700,600],[900,400]], 8:[[500,600],[500,800],[700,600]],
+    9:[[500,600],[300,600],[500,800]], 10:[[700,400],[700,200],[500,400]] } },
+  { name: 'Momentum', tris: {
+    1:[[400,400],[200,400],[400,600]], 2:[[400,400],[400,200],[200,400]],
+    3:[[400,200],[400,400],[600,200]], 4:[[800,200],[600,200],[800,400]],
+    5:[[200,600],[400,600],[200,400]], 6:[[400,800],[600,800],[400,600]],
+    7:[[600,600],[400,600],[600,800]], 8:[[800,800],[800,600],[600,800]],
+    9:[[200,200],[200,400],[400,200]], 10:[[600,400],[600,200],[400,400]] } },
+];
+const IDS = [1,2,3,4,5,6,7,8,9,10];
+const LEG = 200;
+const CENTROID_OFFSET = LEG * Math.SQRT2 / 3; // right-angle vertex → centroid
+
+// Convert a triangle's three points into a rigid pose: centroid + angle
+// (direction from the right-angle vertex to the hypotenuse midpoint).
+function toPose(pts) {
+  let r = 0;
+  for (let i = 0; i < 3; i++) {
+    const p = pts[i], a = pts[(i+1)%3], b = pts[(i+2)%3];
+    const dot = (a[0]-p[0])*(b[0]-p[0]) + (a[1]-p[1])*(b[1]-p[1]);
+    if (Math.abs(dot) < 1) { r = i; break; }
+  }
+  const P = pts[r], A = pts[(r+1)%3], B = pts[(r+2)%3];
+  const mx = (A[0]+B[0])/2, my = (A[1]+B[1])/2;
+  return {
+    x: (P[0]+A[0]+B[0])/3,
+    y: (P[1]+A[1]+B[1])/3,
+    a: Math.atan2(my-P[1], mx-P[0]),
+  };
+}
+const POSES = STATES.map(s => IDS.map(id => toPose(s.tris[id])));
+
+// Shortest signed rotation from angle a to angle b; 180° turns take the
+// direction given by `tie` so mirrored pieces turn opposite ways.
+function shortestTurn(a, b, tie) {
+  let d = b - a;
+  while (d > Math.PI + 1e-6) d -= 2*Math.PI;
+  while (d < -Math.PI - 1e-6) d += 2*Math.PI;
+  if (Math.abs(Math.abs(d) - Math.PI) < 1e-3) d = tie * Math.PI;
+  return d;
+}
+
+// Minimum-cost assignment (Hungarian algorithm) for a square cost matrix.
+// Returns match[i] = column assigned to row i.
+function assign(cost) {
+  const n = cost.length, INF = 1e18;
+  const u = new Array(n+1).fill(0), v = new Array(n+1).fill(0);
+  const p = new Array(n+1).fill(0), way = new Array(n+1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    p[0] = i;
+    let j0 = 0;
+    const minv = new Array(n+1).fill(INF), used = new Array(n+1).fill(false);
+    do {
+      used[j0] = true;
+      const i0 = p[j0];
+      let delta = INF, j1 = 0;
+      for (let j = 1; j <= n; j++) if (!used[j]) {
+        const cur = cost[i0-1][j-1] - u[i0] - v[j];
+        if (cur < minv[j]) { minv[j] = cur; way[j] = j0; }
+        if (minv[j] < delta) { delta = minv[j]; j1 = j; }
+      }
+      for (let j = 0; j <= n; j++) {
+        if (used[j]) { u[p[j]] += delta; v[j] -= delta; } else minv[j] -= delta;
+      }
+      j0 = j1;
+    } while (p[j0] !== 0);
+    do { const j1 = way[j0]; p[j0] = p[j1]; j0 = j1; } while (j0);
+  }
+  const match = new Array(n);
+  for (let j = 1; j <= n; j++) match[p[j]-1] = j-1;
+  return match;
+}
+
+// Motion plan per transition: for each starting triangle, which target pose
+// it flies to and how far it turns. Driven by the Spin control (-1…1):
+//   0   → Figma's own numbering, shortest turn (the default)
+//   < 0 → the ten triangles are identical, so let them swap targets to avoid
+//         turning; at -1 rotation is minimised outright
+//   > 0 → add whole extra turns, one triangle at a time, up to 1 each
+let PLAN = [];
+function buildPlan(spin) {
+  PLAN = POSES.map((from, s) => {
+    const to = POSES[(s+1) % POSES.length];
+    let match = IDS.map((_, i) => i);
+    if (spin < 0) {
+      const w = -spin;
+      const cost = from.map((p, i) => to.map((q, j) =>
+        Math.abs(shortestTurn(p.a, q.a, 1)) / (Math.PI/2) +
+        0.25 * Math.hypot(q.x - p.x, q.y - p.y) / LEG +
+        (i === j ? 0 : (1 - w) * 2.5)));
+      match = assign(cost);
+    }
+    const extra = spin > 0 ? Math.round(spin * IDS.length) : 0;
+    return from.map((p, i) => {
+      const q = to[match[i]];
+      let d = shortestTurn(p.a, q.a, i % 2 ? -1 : 1);
+      const turns = Math.floor(extra / IDS.length) + (i < extra % IDS.length ? 1 : 0);
+      const dir = Math.abs(d) > 1e-6 ? Math.sign(d) : (i % 2 ? -1 : 1);
+      d += dir * turns * 2 * Math.PI;
+      return { q, d };
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Timing
+// ---------------------------------------------------------------------------
+const settings = { hold: 0.6, trans: 0.7, stagger: 0.02, easing: 'expo', spin: 0, fg: '#000000', bg: '#ffffff' };
+
+const EASE = {
+  expo: t => t === 0 ? 0 : t === 1 ? 1 : t < .5
+    ? Math.pow(2, 20*t - 10) / 2 : (2 - Math.pow(2, -20*t + 10)) / 2,
+  cubic: t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2,
+  back: t => {
+    const c1 = 1.2, c2 = c1 * 1.525;
+    return t < .5
+      ? (Math.pow(2*t, 2) * ((c2+1)*2*t - c2)) / 2
+      : (Math.pow(2*t - 2, 2) * ((c2+1)*(t*2-2) + c2) + 2) / 2;
+  },
+};
+
+const segLen = () => settings.hold + settings.trans;
+const loopLen = () => segLen() * STATES.length;
+
+// Returns the ten triangle poses at time t (seconds).
+function posesAt(t) {
+  const L = loopLen();
+  t = ((t % L) + L) % L;
+  const s = Math.min(STATES.length - 1, Math.floor(t / segLen()));
+  const local = t - s * segLen();
+  const from = POSES[s];
+  if (local <= settings.hold) return from;
+
+  const plan = PLAN[s];
+  const tt = local - settings.hold;
+  const stagger = Math.min(settings.stagger, settings.trans / 20);
+  const each = settings.trans - stagger * (IDS.length - 1);
+  const ease = EASE[settings.easing];
+  return from.map((p, i) => {
+    const k = ease(Math.max(0, Math.min(1, (tt - i*stagger) / each)));
+    const { q, d } = plan[i];
+    return {
+      x: p.x + (q.x - p.x) * k,
+      y: p.y + (q.y - p.y) * k,
+      a: p.a + d * k,
+    };
+  });
+}
+
+function stateIndexAt(t) {
+  const L = loopLen();
+  t = ((t % L) + L) % L;
+  const s = Math.floor(t / segLen());
+  const local = t - s * segLen();
+  return local < settings.hold + settings.trans / 2 ? s % STATES.length : (s + 1) % STATES.length;
+}
+
+// ---------------------------------------------------------------------------
+// Drawing — all triangles go into one path (same winding) so shared edges
+// don't show anti-aliasing seams.
+// ---------------------------------------------------------------------------
+function draw(ctx, size, t) {
+  const sc = size / 1000;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = settings.bg;
+  ctx.fillRect(0, 0, size, size);
+  ctx.setTransform(sc, 0, 0, sc, 0, 0);
+  ctx.beginPath();
+  for (const p of posesAt(t)) {
+    const ux = Math.cos(p.a), uy = Math.sin(p.a);
+    const Px = p.x - ux * CENTROID_OFFSET, Py = p.y - uy * CENTROID_OFFSET;
+    // legs at ±45° from the bisector
+    const c = Math.SQRT1_2;
+    const e1x = (ux*c - uy*c) * LEG, e1y = (ux*c + uy*c) * LEG;
+    const e2x = (ux*c + uy*c) * LEG, e2y = (-ux*c + uy*c) * LEG;
+    ctx.moveTo(Px, Py);
+    ctx.lineTo(Px + e1x, Py + e1y);
+    ctx.lineTo(Px + e2x, Py + e2y);
+    ctx.closePath();
+  }
+  ctx.fillStyle = settings.fg;
+  ctx.fill('nonzero');
+}
+
+// ---------------------------------------------------------------------------
+// Preview
+// ---------------------------------------------------------------------------
+const view = document.getElementById('view');
+const vctx = view.getContext('2d');
+const stage = document.getElementById('stage');
+let viewSize = 0;
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  const cs = getComputedStyle(stage);
+  const pad = parseFloat(cs.paddingLeft) * 2;
+  const s = Math.max(100, Math.floor(Math.min(r.width - pad, r.height - pad)));
+  const dpr = window.devicePixelRatio || 1;
+  view.style.width = view.style.height = s + 'px';
+  view.width = view.height = viewSize = Math.round(s * dpr);
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+
+// State list
+const statesEl = document.getElementById('states');
+STATES.forEach((s, i) => {
+  const li = document.createElement('li');
+  li.innerHTML = `<span>${i+1}</span><span>${s.name}</span>`;
+  li.onclick = () => { clock = i * segLen(); if (!playing) render(); };
+  statesEl.appendChild(li);
+});
+
+let playing = true, clock = 0, last = performance.now();
+const timeEl = document.getElementById('time');
+const durEl = document.getElementById('dur');
+const barFill = document.getElementById('barFill');
+const ticks = document.getElementById('ticks');
+
+function updateTicks() {
+  ticks.innerHTML = '';
+  for (let i = 1; i < STATES.length; i++) {
+    const sp = document.createElement('span');
+    sp.style.left = (i / STATES.length * 100) + '%';
+    ticks.appendChild(sp);
+  }
+  durEl.textContent = loopLen().toFixed(2) + 's';
+}
+
+function render() {
+  const L = loopLen();
+  const t = ((clock % L) + L) % L;
+  draw(vctx, viewSize, t);
+  timeEl.textContent = t.toFixed(2) + 's';
+  barFill.style.width = (t / L * 100) + '%';
+  const si = stateIndexAt(t);
+  [...statesEl.children].forEach((li, i) => li.classList.toggle('active', i === si));
+}
+
+function tick(now) {
+  if (playing) clock += (now - last) / 1000;
+  last = now;
+  render();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+document.getElementById('play').onclick = e => {
+  playing = !playing;
+  e.currentTarget.textContent = playing ? 'Pause' : 'Play';
+};
+document.getElementById('bar').onclick = e => {
+  const r = e.currentTarget.getBoundingClientRect();
+  clock = (e.clientX - r.left) / r.width * loopLen();
+};
+
+// Controls
+function bindRange(id, key, fmt) {
+  const el = document.getElementById(id), out = document.getElementById(id + 'Out');
+  const sync = () => {
+    const prevPhase = key ? (clock % loopLen()) / loopLen() : 0;
+    if (key) settings[key] = parseFloat(el.value);
+    out.textContent = fmt(parseFloat(el.value));
+    if (key) { clock = prevPhase * loopLen(); updateTicks(); }
+  };
+  el.oninput = sync; sync();
+  return el;
+}
+bindRange('hold', 'hold', v => v.toFixed(2) + 's');
+bindRange('trans', 'trans', v => v.toFixed(2) + 's');
+bindRange('stagger', 'stagger', v => Math.round(v * 1000) + 'ms');
+const spinEl = bindRange('spin', 'spin', v => {
+  buildPlan(v);
+  return Math.abs(v) < 0.005 ? 'Default' : (v > 0 ? '+' : '−') + Math.round(Math.abs(v) * 100) + '%';
+});
+// snap to the centre near the middle, and double-click to reset
+spinEl.addEventListener('input', () => {
+  if (Math.abs(spinEl.value) < 0.04 && spinEl.value != 0) { spinEl.value = 0; spinEl.oninput(); }
+});
+spinEl.ondblclick = () => { spinEl.value = 0; spinEl.oninput(); };
+const loopsEl = bindRange('loops', null, v => '×' + v);
+
+function bindSeg(id, onChange) {
+  const el = document.getElementById(id);
+  el.querySelectorAll('button').forEach(b => b.onclick = () => {
+    el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    onChange(b.dataset.v);
+  });
+  return () => el.querySelector('.on').dataset.v;
+}
+bindSeg('easing', v => settings.easing = v);
+
+// Colours — picker and hex field stay in sync; hex accepts #rgb or #rrggbb.
+const fgPick = document.getElementById('fgPick'), fgHex = document.getElementById('fgHex');
+const bgPick = document.getElementById('bgPick'), bgHex = document.getElementById('bgHex');
+
+function normHex(v) {
+  v = v.trim().replace(/^#?/, '#').toLowerCase();
+  if (/^#[0-9a-f]{3}$/.test(v)) v = '#' + [...v.slice(1)].map(c => c + c).join('');
+  return /^#[0-9a-f]{6}$/.test(v) ? v : null;
+}
+function setColour(key, v, fromPicker) {
+  settings[key] = v;
+  const [pick, hex] = key === 'fg' ? [fgPick, fgHex] : [bgPick, bgHex];
+  pick.style.background = v;
+  if (document.activeElement !== hex) hex.value = v;
+  if (!fromPicker && picker.key === key) picker.load(v);
+}
+function bindColour(key, pick, hex) {
+  pick.onpointerdown = e => e.stopPropagation();
+  pick.onclick = e => { e.stopPropagation(); picker.key === key ? picker.close() : picker.open(key, pick); };
+  hex.oninput = () => { const v = normHex(hex.value); if (v) setColour(key, v); };
+  hex.onblur = () => { hex.value = settings[key]; };
+}
+
+// In-app colour picker: saturation/brightness square + hue strip.
+function hsvToHex(h, s, v) {
+  const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+  return '#' + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+}
+function hexToHsv(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+  let h = 0;
+  if (d) h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: (h * 60 + 360) % 360, s: max ? d / max : 0, v: max };
+}
+
+const picker = (() => {
+  const el = document.getElementById('picker');
+  const sv = document.getElementById('pkSV'), svKnob = document.getElementById('pkSVKnob');
+  const hue = document.getElementById('pkHue'), hueKnob = document.getElementById('pkHueKnob');
+  const chip = document.getElementById('pkChip'), hexOut = document.getElementById('pkHex');
+  const api = { key: null, h: 0, s: 0, v: 0, anchor: null };
+
+  function paint() {
+    sv.style.background = hsvToHex(api.h, 1, 1);
+    svKnob.style.left = (api.s * 100) + '%';
+    svKnob.style.top = ((1 - api.v) * 100) + '%';
+    hueKnob.style.left = (api.h / 360 * 100) + '%';
+    const hex = hsvToHex(api.h, api.s, api.v);
+    chip.style.background = hex;
+    hexOut.textContent = hex;
+  }
+  function commit() { paint(); setColour(api.key, hsvToHex(api.h, api.s, api.v), true); }
+  function place() {
+    const r = api.anchor.getBoundingClientRect();
+    const w = el.offsetWidth, h = el.offsetHeight;
+    // open beside the sidebar; fall back to below the swatch when there's no room
+    const side = document.querySelector('aside').getBoundingClientRect();
+    let x = side.right + 12, y = r.top - 8;
+    if (x + w > innerWidth - 8) { x = Math.min(r.left, innerWidth - w - 8); y = r.bottom + 8; }
+    y = Math.max(8, Math.min(y, innerHeight - h - 8));
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+  }
+  function drag(area, onMove) {
+    area.addEventListener('pointerdown', e => {
+      area.setPointerCapture(e.pointerId);
+      const move = ev => {
+        const r = area.getBoundingClientRect();
+        onMove(Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)),
+               Math.max(0, Math.min(1, (ev.clientY - r.top) / r.height)));
+        commit();
+      };
+      move(e);
+      area.onpointermove = move;
+      area.onpointerup = area.onpointercancel = () => { area.onpointermove = null; };
+    });
+  }
+  drag(sv, (x, y) => { api.s = x; api.v = 1 - y; });
+  drag(hue, x => { api.h = Math.min(359.9, x * 360); });
+
+  api.load = hex => {
+    const c = hexToHsv(hex);
+    // keep the current hue when the colour has none (greys)
+    if (c.s > 0 && c.v > 0) api.h = c.h;
+    api.s = c.s; api.v = c.v;
+    paint();
+  };
+  api.open = (key, anchor) => {
+    api.close();
+    api.key = key; api.anchor = anchor;
+    anchor.classList.add('open');
+    api.load(settings[key]);
+    el.classList.add('show');
+    place();
+  };
+  api.close = () => {
+    if (api.anchor) api.anchor.classList.remove('open');
+    api.key = api.anchor = null;
+    el.classList.remove('show');
+  };
+  el.addEventListener('pointerdown', e => e.stopPropagation());
+  document.addEventListener('pointerdown', () => api.key && api.close());
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') api.close(); });
+  addEventListener('resize', () => api.key && place());
+  document.querySelector('aside').addEventListener('scroll', () => api.key && place());
+  return api;
+})();
+bindColour('fg', fgPick, fgHex);
+bindColour('bg', bgPick, bgHex);
+setColour('fg', settings.fg); setColour('bg', settings.bg);
+document.querySelectorAll('#colourActions button').forEach(b => b.onclick = () => {
+  if (b.dataset.v === 'swap') { const f = settings.fg; setColour('fg', settings.bg); setColour('bg', f); }
+  else { setColour('fg', '#000000'); setColour('bg', '#ffffff'); }
+});
+const getSize = bindSeg('size', () => {});
+const getFps = bindSeg('fps', () => {});
+updateTicks();
+
+// ---------------------------------------------------------------------------
+// MP4 export — renders every frame offline (frame-accurate, independent of
+// playback) and encodes H.264 with WebCodecs, muxed by mp4-muxer.
+// ---------------------------------------------------------------------------
+const dlBtn = document.getElementById('download');
+const statusEl = document.getElementById('status');
+const prog = document.getElementById('prog');
+
+async function pickCodec(w, h, fps, bitrate) {
+  const candidates = ['avc1.640034', 'avc1.640033', 'avc1.640032', 'avc1.64002A', 'avc1.640028', 'avc1.4D0034', 'avc1.42003E'];
+  for (const codec of candidates) {
+    const cfg = { codec, width: w, height: h, bitrate, framerate: fps, avc: { format: 'avc' } };
+    try {
+      const r = await VideoEncoder.isConfigSupported(cfg);
+      if (r.supported) return cfg;
+    } catch (_) {}
+  }
+  return null;
+}
+
+dlBtn.onclick = async () => {
+  if (!('VideoEncoder' in window)) {
+    statusEl.textContent = 'MP4 export needs WebCodecs — use Chrome, Edge or Safari 17+.';
+    return;
+  }
+  const size = parseInt(getSize()), fps = parseInt(getFps());
+  const loops = parseInt(loopsEl.value);
+  const bitrate = size >= 2160 ? 40e6 : 16e6;
+  const total = Math.round(loopLen() * loops * fps);
+
+  dlBtn.disabled = true;
+  statusEl.textContent = 'Preparing…';
+  prog.style.width = '0%';
+
+  try {
+    const cfg = await pickCodec(size, size, fps, bitrate);
+    if (!cfg) throw new Error('No supported H.264 encoder for this size.');
+
+    const muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(),
+      video: { codec: 'avc', width: size, height: size, frameRate: fps },
+      fastStart: 'in-memory',
+    });
+    let encErr = null;
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: e => { encErr = e; },
+    });
+    encoder.configure(cfg);
+
+    const canvas = typeof OffscreenCanvas !== 'undefined'
+      ? new OffscreenCanvas(size, size)
+      : Object.assign(document.createElement('canvas'), { width: size, height: size });
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const frameDur = 1e6 / fps;
+
+    for (let i = 0; i < total; i++) {
+      if (encErr) throw encErr;
+      draw(ctx, size, i / fps);
+      const frame = new VideoFrame(canvas, { timestamp: Math.round(i * frameDur), duration: Math.round(frameDur) });
+      encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
+      frame.close();
+      while (encoder.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 0));
+      if (i % 10 === 0) {
+        prog.style.width = (i / total * 100) + '%';
+        statusEl.textContent = `Encoding frame ${i} / ${total}`;
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+    await encoder.flush();
+    if (encErr) throw encErr;
+    muxer.finalize();
+
+    const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+    const name = `Values-Animation-1_${size}_${fps}fps.mp4`;
+    prog.style.width = '100%';
+    statusEl.textContent = `Done · ${(blob.size / 1e6).toFixed(1)} MB · ${(total / fps).toFixed(2)}s`;
+    await saveFile(blob, name);
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = 'Export failed: ' + (e.message || e);
+  } finally {
+    dlBtn.disabled = false;
+  }
+};
+
+// iOS / iPadOS ignore <a download> for blobs, so on touch devices hand the
+// file to the native share sheet ("Save Video" / Files). Everywhere else use
+// a regular download link.
+async function saveFile(blob, name) {
+  const file = new File([blob], name, { type: 'video/mp4' });
+  const touch = matchMedia('(pointer: coarse)').matches;
+  if (touch && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: name });
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      // Share needs a fresh user gesture after a long encode — offer a tap.
+      statusEl.innerHTML = '';
+      const b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = 'Tap to save video';
+      b.onclick = () => navigator.share({ files: [file], title: name }).catch(() => {});
+      statusEl.appendChild(b);
+      return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+</script>
+</body>
+</html>
