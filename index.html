@@ -545,7 +545,7 @@ STATES.forEach((s, i) => {
   statesEl.appendChild(li);
 });
 
-let playing = true, clock = 0, last = performance.now();
+let playing = true, exporting = false, clock = 0, last = performance.now();
 const timeEl = document.getElementById('time');
 const durEl = document.getElementById('dur');
 const barFill = document.getElementById('barFill');
@@ -572,9 +572,12 @@ function render() {
 }
 
 function tick(now) {
-  if (playing) clock += (now - last) / 1000;
+  // the preview holds still during export so it doesn't compete with encoding
+  if (!exporting) {
+    if (playing) clock += (now - last) / 1000;
+    render();
+  }
   last = now;
-  render();
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
@@ -771,9 +774,12 @@ dlBtn.onclick = async () => {
   const size = parseInt(getSize()), fps = parseInt(getFps());
   const loops = parseInt(loopsEl.value);
   const bitrate = size >= 2160 ? 40e6 : 16e6;
-  const total = Math.round(loopLen() * loops * fps);
+  // Every loop is identical, so only one is rendered and encoded; its chunks
+  // are then repeated with shifted timestamps for the remaining loops.
+  const loopFrames = Math.round(loopLen() * fps);
 
   dlBtn.disabled = true;
+  exporting = true;
   statusEl.textContent = 'Preparing…';
   prog.style.width = '0%';
 
@@ -786,9 +792,18 @@ dlBtn.onclick = async () => {
       video: { codec: 'avc', width: size, height: size, frameRate: fps },
       fastStart: 'in-memory',
     });
+    const frameDur = 1e6 / fps;
+    const ts = j => Math.round(j * frameDur);
+    const chunks = [];
     let encErr = null;
     const encoder = new VideoEncoder({
-      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      output: (chunk, meta) => {
+        const data = new Uint8Array(chunk.byteLength);
+        chunk.copyTo(data);
+        const j = chunks.length;
+        chunks.push({ data, type: chunk.type });
+        muxer.addVideoChunkRaw(data, chunk.type, ts(j), ts(j + 1) - ts(j), meta);
+      },
       error: e => { encErr = e; },
     });
     encoder.configure(cfg);
@@ -797,24 +812,35 @@ dlBtn.onclick = async () => {
       ? new OffscreenCanvas(size, size)
       : Object.assign(document.createElement('canvas'), { width: size, height: size });
     const ctx = canvas.getContext('2d', { alpha: false });
-    const frameDur = 1e6 / fps;
+    // Wait on the encoder's own event rather than timers, which browsers
+    // throttle hard when the tab or window is in the background.
+    const dequeued = () => new Promise(r => encoder.addEventListener('dequeue', r, { once: true }));
 
-    for (let i = 0; i < total; i++) {
+    for (let i = 0; i < loopFrames; i++) {
       if (encErr) throw encErr;
       draw(ctx, size, i / fps);
-      const frame = new VideoFrame(canvas, { timestamp: Math.round(i * frameDur), duration: Math.round(frameDur) });
+      const frame = new VideoFrame(canvas, { timestamp: ts(i), duration: ts(i + 1) - ts(i) });
       encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
       frame.close();
-      while (encoder.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 0));
+      while (encoder.encodeQueueSize > 8) await dequeued();
       if (i % 10 === 0) {
-        prog.style.width = (i / total * 100) + '%';
-        statusEl.textContent = `Encoding frame ${i} / ${total}`;
-        await new Promise(r => setTimeout(r, 0));
+        prog.style.width = (i / loopFrames * 100) + '%';
+        statusEl.textContent = `Encoding frame ${i} / ${loopFrames}`;
       }
     }
     await encoder.flush();
+    encoder.close();
     if (encErr) throw encErr;
+    if (chunks.length !== loopFrames) throw new Error('Encoder dropped frames.');
+
+    for (let k = 1; k < loops; k++) {
+      chunks.forEach((c, i) => {
+        const j = k * loopFrames + i;
+        muxer.addVideoChunkRaw(c.data, c.type, ts(j), ts(j + 1) - ts(j));
+      });
+    }
     muxer.finalize();
+    const total = loopFrames * loops;
 
     const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
     const name = `Values-Animation-1_${size}_${fps}fps.mp4`;
@@ -826,6 +852,7 @@ dlBtn.onclick = async () => {
     statusEl.textContent = 'Export failed: ' + (e.message || e);
   } finally {
     dlBtn.disabled = false;
+    exporting = false;
   }
 };
 
