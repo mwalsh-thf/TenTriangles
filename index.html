@@ -164,13 +164,18 @@
   }
 
   @media (max-width: 760px) {
-    /* Normal flow so the page scrolls from the top (column-reverse in a
-       fixed-height body pushed the stage above the unscrollable top edge). */
-    html, body { height: auto; }
+    /* Split screen: animation pinned in the top half, controls scroll in
+       the bottom half so edits are always visible. */
+    html, body { height: 100%; height: 100dvh; overflow: hidden; }
     body { flex-direction: column; }
-    main { order: -1; height: 60vh; height: 60svh; flex: none; }
-    aside { width: 100%; height: auto; overflow: visible; border-right: none; border-top: 1px solid var(--fg); }
-    .stage { padding: 16px; }
+    main { order: -1; height: 50%; flex: none; }
+    aside {
+      flex: 1; min-height: 0; width: 100%; height: auto;
+      overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+      border-right: none; border-top: 1px solid var(--fg);
+    }
+    .stage { padding: 12px; }
+    .timeline { padding: 8px 16px; }
   }
   @media (pointer: coarse) {
     .seg button { min-height: 44px; }
