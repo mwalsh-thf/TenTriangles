@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Values Animation 1</title>
 <style>
+  /* Value words — Helvetica Now Display, as in Figma, if installed */
+  @font-face {
+    font-family: "Value Text";
+    src: local("Helvetica Now Display"), local("HelveticaNowDisplay-Regular");
+  }
   :root {
     --fg: #000;
     --bg: #fff;
@@ -227,8 +232,8 @@
   <div class="block">
     <h2>Motion</h2>
     <div class="field">
-      <label>Hold <output id="holdOut"></output></label>
-      <input type="range" id="hold" min="0.1" max="2" step="0.05" value="0.6">
+      <label><span id="holdLabel">Hold</span> <output id="holdOut"></output></label>
+      <input type="range" id="hold" min="0.1" max="4" step="0.05" value="0.6">
     </div>
     <div class="field">
       <label>Transition <output id="transOut"></output></label>
@@ -258,6 +263,37 @@
         <button data-v="none">None</button>
       </div>
     </div>
+  </div>
+
+  <div class="block">
+    <h2>Text</h2>
+    <div class="field">
+      <label>Values</label>
+      <div class="seg" id="textMode">
+        <button data-v="off" class="on">Off</button>
+        <button data-v="on">On</button>
+      </div>
+    </div>
+    <div class="field off" id="textStyleField">
+      <label>Style</label>
+      <div class="seg" id="textStyle">
+        <button data-v="rise" class="on">Rise</button>
+        <button data-v="fade">Fade</button>
+        <button data-v="type">Type</button>
+      </div>
+    </div>
+    <div class="field off" id="textInField">
+      <label>In / out <output id="textInOut"></output></label>
+      <input type="range" id="textIn" min="0.2" max="2" step="0.05" value="0.6">
+    </div>
+    <div class="field off" id="textColourField">
+      <label>Colour</label>
+      <div class="colour">
+        <button class="swatch" id="tcPick" aria-label="Pick text colour"></button>
+        <input type="text" id="tcHex" value="#000000" maxlength="7" spellcheck="false">
+      </div>
+    </div>
+    <p class="sub" id="fontNote"></p>
   </div>
 
   <div class="block">
@@ -310,6 +346,7 @@
 // Icon data — taken from Figma (THEF-TenTriangles / Core Values). Each icon is
 // a 1000×1000 frame built from ten right-isosceles triangles (legs = 200),
 // named 1–10 consistently across frames so each triangle can be tracked.
+// `text` is the top-left of the value word's box (Core Values with Text).
 // ---------------------------------------------------------------------------
 const STATES = [
   { name: 'TheF', tris: {
@@ -318,31 +355,31 @@ const STATES = [
     5:[[500,300],[500,100],[300,300]], 6:[[500,700],[500,500],[300,700]],
     7:[[500,500],[500,700],[700,500]], 8:[[700,700],[700,500],[500,700]],
     9:[[300,700],[300,900],[500,700]], 10:[[500,900],[500,700],[300,900]] } },
-  { name: 'Clarity', tris: {
+  { name: 'Clarity', text: [165,222], tris: {
     1:[[400,200],[400,400],[600,200]], 2:[[600,400],[600,200],[400,400]],
     3:[[600,200],[600,400],[800,200]], 4:[[800,400],[800,200],[600,400]],
     5:[[400,400],[400,600],[600,400]], 6:[[600,600],[600,400],[400,600]],
     7:[[600,400],[600,600],[800,400]], 8:[[800,600],[800,400],[600,600]],
     9:[[200,600],[200,800],[400,600]], 10:[[400,800],[400,600],[200,800]] } },
-  { name: 'Proximity', tris: {
+  { name: 'Proximity', text: [142,622], tris: {
     1:[[400,400],[400,200],[200,400]], 2:[[600,600],[600,400],[400,600]],
     3:[[400,200],[400,400],[600,200]], 4:[[600,400],[600,200],[400,400]],
     5:[[400,600],[400,800],[600,600]], 6:[[600,800],[600,600],[400,800]],
     7:[[600,400],[600,600],[800,400]], 8:[[800,600],[800,400],[600,600]],
     9:[[200,400],[200,600],[400,400]], 10:[[400,600],[400,400],[200,600]] } },
-  { name: 'Imagination', tris: {
+  { name: 'Imagination', text: [174,422], tris: {
     1:[[600,400],[600,200],[400,400]], 2:[[400,400],[400,200],[200,400]],
     3:[[600,200],[600,400],[800,200]], 4:[[800,400],[800,200],[600,400]],
     5:[[400,400],[200,400],[400,600]], 6:[[400,600],[400,800],[600,600]],
     7:[[600,400],[600,600],[800,400]], 8:[[800,600],[800,400],[600,600]],
     9:[[400,200],[400,400],[600,200]], 10:[[200,200],[200,400],[400,200]] } },
-  { name: 'Empathy', tris: {
+  { name: 'Empathy', text: [51,100], tris: {
     1:[[300,400],[100,400],[300,600]], 2:[[300,400],[300,200],[100,400]],
     3:[[500,600],[500,400],[300,600]], 4:[[700,400],[500,400],[700,600]],
     5:[[300,400],[500,400],[300,200]], 6:[[700,400],[900,400],[700,200]],
     7:[[700,400],[700,600],[900,400]], 8:[[500,600],[500,800],[700,600]],
     9:[[500,600],[300,600],[500,800]], 10:[[700,400],[700,200],[500,400]] } },
-  { name: 'Momentum', tris: {
+  { name: 'Momentum', text: [190,365], tris: {
     1:[[400,400],[200,400],[400,600]], 2:[[400,400],[400,200],[200,400]],
     3:[[400,200],[400,400],[600,200]], 4:[[800,200],[600,200],[800,400]],
     5:[[200,600],[400,600],[200,400]], 6:[[400,800],[600,800],[400,600]],
@@ -482,7 +519,11 @@ function puzzlePose(p, moves, tau, ease) {
 // ---------------------------------------------------------------------------
 // Timing
 // ---------------------------------------------------------------------------
-const settings = { hold: 0.6, trans: 0.7, stagger: 0.02, easing: 'expo', spin: 0, noOverlap: false, fg: '#000000', bg: '#ffffff' };
+const settings = {
+  hold: 0.6, trans: 0.7, stagger: 0.02, easing: 'expo', spin: 0, noOverlap: false,
+  text: false, textStyle: 'rise', textIn: 0.6,
+  fg: '#000000', bg: '#ffffff', tc: '#000000',
+};
 
 const EASE = {
   expo: t => t === 0 ? 0 : t === 1 ? 1 : t < .5
@@ -498,7 +539,10 @@ const EASE = {
 
 // In puzzle mode transitions differ in length; Transition sets the longest.
 const transOf = s => settings.noOverlap ? settings.trans * NO_OVERLAP_PLANS[s].len : settings.trans;
-const segLen = s => settings.hold + transOf(s);
+// With values text on, each state holds for: word in → Hold → word out.
+// TheF has no word but keeps the same length so the rhythm stays even.
+const holdLen = () => settings.text ? settings.textIn * 2 + settings.hold : settings.hold;
+const segLen = s => holdLen() + transOf(s);
 const segStart = s => { let t = 0; for (let k = 0; k < s; k++) t += segLen(k); return t; };
 const loopLen = () => segStart(STATES.length);
 
@@ -515,9 +559,9 @@ function segmentAt(t) {
 function posesAt(t) {
   const { s, local } = segmentAt(t);
   const from = POSES[s];
-  if (local <= settings.hold) return from;
+  if (local <= holdLen()) return from;
 
-  const tt = local - settings.hold;
+  const tt = local - holdLen();
   if (settings.noOverlap) {
     const tau = Math.min(1, tt / transOf(s)), ease = EASE[settings.easing];
     return from.map((p, i) => puzzlePose(p, NO_OVERLAP_PLANS[s].pieces[i], tau, ease));
@@ -540,7 +584,7 @@ function posesAt(t) {
 
 function stateIndexAt(t) {
   const { s, local } = segmentAt(t);
-  return local < settings.hold + transOf(s) / 2 ? s : (s + 1) % STATES.length;
+  return local < holdLen() + transOf(s) / 2 ? s : (s + 1) % STATES.length;
 }
 
 // ---------------------------------------------------------------------------
@@ -568,6 +612,67 @@ function draw(ctx, size, t) {
   }
   ctx.fillStyle = settings.fg;
   ctx.fill('nonzero');
+  drawText(ctx, t);
+}
+
+// Value words — set as in Figma: 160px, −4.8px tracking, baseline 177.6
+// below the top of the 235.2px line box (Helvetica Now Display's metrics).
+// Letters are drawn one at a time so they can animate individually; their
+// x positions come from measuring each prefix, which keeps the kerning.
+const TEXT = { size: 160, track: -4.8, baseline: 177.6, box: 235.2 };
+const TEXT_FONT = `${TEXT.size}px "Value Text", "Helvetica Neue", Helvetica, Arial, sans-serif`;
+let glyphCache = new Map();
+function glyphs(word) {
+  if (!glyphCache.has(word)) {
+    const m = document.createElement('canvas').getContext('2d');
+    m.font = TEXT_FONT;
+    const chars = [...word];
+    glyphCache.set(word, chars.map((ch, i) => ({
+      ch, x: m.measureText(word.slice(0, i + 1)).width - m.measureText(ch).width + i * TEXT.track,
+    })));
+  }
+  return glyphCache.get(word);
+}
+
+function drawText(ctx, t) {
+  if (!settings.text) return;
+  const { s, local } = segmentAt(t);
+  const pos = STATES[s].text;
+  if (!pos || local >= holdLen()) return;
+
+  const word = glyphs(STATES[s].name), n = word.length;
+  const io = settings.textIn, outStart = holdLen() - io;
+  const ease = EASE[settings.easing];
+  // letters start one after another across half the in/out time
+  const stag = n > 1 ? io * 0.5 / (n - 1) : 0, each = io - stag * (n - 1);
+  const clamp = v => Math.max(0, Math.min(1, v));
+  const [x0, y0] = pos, base = y0 + TEXT.baseline;
+
+  ctx.save();
+  ctx.font = TEXT_FONT;
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = settings.tc;
+  if (settings.textStyle === 'rise') {
+    // letters rise into, and out of, the word's own line box
+    ctx.beginPath(); ctx.rect(0, y0, 1000, TEXT.box); ctx.clip();
+  }
+  word.forEach(({ ch, x }, i) => {
+    let dy = 0, alpha = 1;
+    if (settings.textStyle === 'type') {
+      // typed on left to right, deleted right to left
+      if (local < io * i / n || local >= outStart + io * (n - 1 - i) / n) return;
+    } else {
+      const kIn = ease(clamp((local - i * stag) / each));
+      const kOut = ease(clamp((local - outStart - i * stag) / each));
+      if (settings.textStyle === 'rise') dy = (1 - kIn) * TEXT.box - kOut * TEXT.box;
+      else alpha = clamp(kIn - kOut);
+    }
+    if (alpha <= 0) return;
+    ctx.globalAlpha = alpha;
+    ctx.fillText(ch, x0 + x, base + dy);
+  });
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------------------
@@ -696,9 +801,44 @@ bindSeg('overlap', v => {
   clock = phase * loopLen();
 });
 
+// Values text: words need room, so switching it on lengthens Hold (now how
+// long each word stays fully on screen) and the transitions; switching it
+// off restores the previous values.
+const holdEl = document.getElementById('hold');
+let textBefore = null;
+bindRange('textIn', 'textIn', v => v.toFixed(2) + 's');
+bindSeg('textStyle', v => settings.textStyle = v);
+bindSeg('textMode', v => {
+  const phase = (clock % loopLen()) / loopLen();
+  settings.text = v === 'on';
+  for (const id of ['textStyleField', 'textInField', 'textColourField'])
+    document.getElementById(id).classList.toggle('off', !settings.text);
+  document.getElementById('holdLabel').textContent = settings.text ? 'Text hold' : 'Hold';
+  if (settings.text) {
+    textBefore = { hold: holdEl.value, trans: transEl.value, noOverlap: settings.noOverlap };
+    holdEl.value = Math.max(holdEl.value, 1.2);
+    if (!settings.noOverlap) transEl.value = Math.max(transEl.value, 1.2);
+  } else if (textBefore) {
+    holdEl.value = textBefore.hold;
+    if (settings.noOverlap === textBefore.noOverlap) transEl.value = textBefore.trans;
+  }
+  holdEl.oninput(); transEl.oninput();
+  clock = phase * loopLen();
+});
+
+// Letter positions are measured once the font is ready.
+document.fonts.load(TEXT_FONT).catch(() => []).then(faces => {
+  glyphCache = new Map();
+  if (!faces.some(f => f.family.replace(/"/g, '') === 'Value Text'))
+    document.getElementById('fontNote').textContent =
+      'Helvetica Now Display isn’t installed on this device — words use Helvetica Neue.';
+});
+
 // Colours — picker and hex field stay in sync; hex accepts #rgb or #rrggbb.
 const fgPick = document.getElementById('fgPick'), fgHex = document.getElementById('fgHex');
 const bgPick = document.getElementById('bgPick'), bgHex = document.getElementById('bgHex');
+const tcPick = document.getElementById('tcPick'), tcHex = document.getElementById('tcHex');
+const COLOUR_FIELDS = { fg: [fgPick, fgHex], bg: [bgPick, bgHex], tc: [tcPick, tcHex] };
 
 function normHex(v) {
   v = v.trim().replace(/^#?/, '#').toLowerCase();
@@ -707,7 +847,7 @@ function normHex(v) {
 }
 function setColour(key, v, fromPicker) {
   settings[key] = v;
-  const [pick, hex] = key === 'fg' ? [fgPick, fgHex] : [bgPick, bgHex];
+  const [pick, hex] = COLOUR_FIELDS[key];
   pick.style.background = v;
   if (document.activeElement !== hex) hex.value = v;
   if (!fromPicker && picker.key === key) picker.load(v);
@@ -806,10 +946,16 @@ const picker = (() => {
 })();
 bindColour('fg', fgPick, fgHex);
 bindColour('bg', bgPick, bgHex);
-setColour('fg', settings.fg); setColour('bg', settings.bg);
+bindColour('tc', tcPick, tcHex);
+setColour('fg', settings.fg); setColour('bg', settings.bg); setColour('tc', settings.tc);
 document.querySelectorAll('#colourActions button').forEach(b => b.onclick = () => {
-  if (b.dataset.v === 'swap') { const f = settings.fg; setColour('fg', settings.bg); setColour('bg', f); }
-  else { setColour('fg', '#000000'); setColour('bg', '#ffffff'); }
+  if (b.dataset.v === 'swap') {
+    const { fg: f, bg: g, tc: c } = settings;
+    setColour('fg', g); setColour('bg', f);
+    // text that matched the icon or background follows it
+    if (c === f) setColour('tc', g); else if (c === g) setColour('tc', f);
+  }
+  else { setColour('fg', '#000000'); setColour('bg', '#ffffff'); setColour('tc', '#000000'); }
 });
 const getSize = bindSeg('size', () => {});
 const getFps = bindSeg('fps', () => {});
@@ -912,7 +1058,7 @@ dlBtn.onclick = async () => {
     const total = loopFrames * loops;
 
     const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
-    const name = `Values-Animation-1_${size}_${fps}fps.mp4`;
+    const name = `Values-Animation-1${settings.text ? '_Text' : ''}_${size}_${fps}fps.mp4`;
     prog.style.width = '100%';
     statusEl.textContent = `Done · ${(blob.size / 1e6).toFixed(1)} MB · ${(total / fps).toFixed(2)}s`;
     await saveFile(blob, name);
