@@ -5,10 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Values Animation 1</title>
 <style>
-  /* Value words — Helvetica Now Display, as in Figma, if installed */
+  /* Value words — Helvetica Now Display, as in Figma. The font is licensed
+     for desktop use, so it isn't bundled: it's taken from the system, or
+     from files loaded with "Load font files" on devices without it. */
   @font-face {
-    font-family: "Value Text";
+    font-family: "Value Text"; font-weight: 300;
+    src: local("Helvetica Now Display Light"), local("HelveticaNowDisplay-Lt");
+  }
+  @font-face {
+    font-family: "Value Text"; font-weight: 400;
     src: local("Helvetica Now Display"), local("HelveticaNowDisplay-Regular");
+  }
+  @font-face {
+    font-family: "Value Text"; font-weight: 500;
+    src: local("Helvetica Now Display Medium"), local("HelveticaNowDisplay-Md");
   }
   :root {
     --fg: #000;
@@ -125,6 +135,21 @@
     transform: translate(-50%, -50%); pointer-events: none;
   }
   .picker .hue .knob { top: 50%; width: 8px; height: 18px; border-radius: 0; }
+  .picker .brand {
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  .picker .brand h2 { margin-bottom: 6px; }
+  .picker .brand button {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    border: none; background: none; color: var(--fg); cursor: pointer;
+    font: inherit; font-size: 13px; padding: 4px 0; text-align: left;
+  }
+  .picker .brand button i { width: 20px; height: 20px; border: 1px solid var(--fg); flex: none; }
+  .picker .brand button.on i { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--fg); }
+  .picker .brand button span + span {
+    margin-left: auto; font-size: 11px; color: var(--muted);
+    text-transform: uppercase; font-variant-numeric: tabular-nums;
+  }
   .picker .row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
   .picker .row .chip { width: 24px; height: 24px; border: 1px solid var(--fg); flex: none; }
   .picker .row span { font-size: 13px; text-transform: uppercase; font-variant-numeric: tabular-nums; }
@@ -145,6 +170,8 @@
 
   .progress { margin-top: 12px; height: 1px; background: var(--line); position: relative; }
   .progress i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--fg); }
+  .btn.small { font-size: 12px; padding: 8px 12px; margin-top: 10px; }
+  .btn[hidden] { display: none; }
   .status { margin-top: 10px; font-size: 12px; color: var(--muted); min-height: 15px; }
 
   /* Stage */
@@ -185,6 +212,7 @@
   }
   @media (pointer: coarse) {
     .seg button { min-height: 44px; }
+    .picker .brand button { min-height: 40px; }
     input[type=range] { height: 32px; touch-action: pan-y; }
     input[type=range]::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -10.5px; }
     input[type=range]::-moz-range-thumb { width: 22px; height: 22px; }
@@ -274,19 +302,47 @@
         <button data-v="on">On</button>
       </div>
     </div>
-    <div class="field off" id="textStyleField">
+    <div class="field off textOpt">
+      <label>Weight</label>
+      <div class="seg" id="textWeight">
+        <button data-v="300">Light</button>
+        <button data-v="400" class="on">Regular</button>
+        <button data-v="500">Medium</button>
+      </div>
+    </div>
+    <div class="field off textOpt">
       <label>Style</label>
       <div class="seg" id="textStyle">
-        <button data-v="rise" class="on">Rise</button>
+        <button data-v="slide" class="on">Slide</button>
         <button data-v="fade">Fade</button>
         <button data-v="type">Type</button>
       </div>
     </div>
-    <div class="field off" id="textInField">
+    <div class="field off textOpt" id="textDirField">
+      <label>Direction</label>
+      <div class="seg" id="textDir">
+        <button data-v="up" class="on" aria-label="Up">↑</button>
+        <button data-v="down" aria-label="Down">↓</button>
+        <button data-v="left" aria-label="Left">←</button>
+        <button data-v="right" aria-label="Right">→</button>
+      </div>
+    </div>
+    <div class="field off textOpt">
+      <label>Exit</label>
+      <div class="seg" id="textExit">
+        <button data-v="continue" class="on">Continue</button>
+        <button data-v="reverse">Reverse</button>
+      </div>
+    </div>
+    <div class="field off textOpt">
       <label>In / out <output id="textInOut"></output></label>
       <input type="range" id="textIn" min="0.2" max="2" step="0.05" value="0.6">
     </div>
-    <div class="field off" id="textColourField">
+    <div class="field off textOpt">
+      <label>Letter stagger <output id="textSpreadOut"></output></label>
+      <input type="range" id="textSpread" min="0" max="0.9" step="0.05" value="0.5">
+    </div>
+    <div class="field off textOpt">
       <label>Colour</label>
       <div class="colour">
         <button class="swatch" id="tcPick" aria-label="Pick text colour"></button>
@@ -294,6 +350,8 @@
       </div>
     </div>
     <p class="sub" id="fontNote"></p>
+    <button class="btn small" id="fontLoad" hidden><span>Load font files</span><span>↑</span></button>
+    <input type="file" id="fontFile" accept=".otf,.ttf,.woff,.woff2" multiple hidden>
   </div>
 
   <div class="block">
@@ -323,6 +381,7 @@
 </aside>
 
 <div class="picker" id="picker">
+  <div class="brand" id="pkBrand"><h2>Brand</h2></div>
   <div class="sv" id="pkSV"><i class="knob" id="pkSVKnob"></i></div>
   <div class="hue" id="pkHue"><i class="knob" id="pkHueKnob"></i></div>
   <div class="row"><i class="chip" id="pkChip"></i><span id="pkHex"></span></div>
@@ -521,7 +580,8 @@ function puzzlePose(p, moves, tau, ease) {
 // ---------------------------------------------------------------------------
 const settings = {
   hold: 0.6, trans: 0.7, stagger: 0.02, easing: 'expo', spin: 0, noOverlap: false,
-  text: false, textStyle: 'rise', textIn: 0.6,
+  text: false, textWeight: 400, textStyle: 'slide', textDir: 'up', textExit: 'continue',
+  textIn: 0.6, textSpread: 0.5,
   fg: '#000000', bg: '#ffffff', tc: '#000000',
 };
 
@@ -620,19 +680,26 @@ function draw(ctx, size, t) {
 // Letters are drawn one at a time so they can animate individually; their
 // x positions come from measuring each prefix, which keeps the kerning.
 const TEXT = { size: 160, track: -4.8, baseline: 177.6, box: 235.2 };
-const TEXT_FONT = `${TEXT.size}px "Value Text", "Helvetica Neue", Helvetica, Arial, sans-serif`;
+const textFont = () =>
+  `${settings.textWeight} ${TEXT.size}px "Value Text", "Helvetica Neue", Helvetica, Arial, sans-serif`;
 let glyphCache = new Map();
 function glyphs(word) {
-  if (!glyphCache.has(word)) {
+  const key = settings.textWeight + word;
+  if (!glyphCache.has(key)) {
     const m = document.createElement('canvas').getContext('2d');
-    m.font = TEXT_FONT;
+    m.font = textFont();
     const chars = [...word];
-    glyphCache.set(word, chars.map((ch, i) => ({
+    glyphCache.set(key, chars.map((ch, i) => ({
       ch, x: m.measureText(word.slice(0, i + 1)).width - m.measureText(ch).width + i * TEXT.track,
     })));
   }
-  return glyphCache.get(word);
+  return glyphCache.get(key);
 }
+
+// Direction of travel for Slide. With Exit: Continue, letters leave the way
+// they were going (in from below, out through the top) and in the order they
+// arrived; Reverse sends them back the way they came, last in first out.
+const TEXT_DIR = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 function drawText(ctx, t) {
   if (!settings.text) return;
@@ -643,34 +710,41 @@ function drawText(ctx, t) {
   const word = glyphs(STATES[s].name), n = word.length;
   const io = settings.textIn, outStart = holdLen() - io;
   const ease = EASE[settings.easing];
-  // letters start one after another across half the in/out time
-  const stag = n > 1 ? io * 0.5 / (n - 1) : 0, each = io - stag * (n - 1);
+  const style = settings.textStyle, cont = settings.textExit === 'continue';
+  // letters start one after another across part of the in/out time
+  const stag = n > 1 ? io * settings.textSpread / (n - 1) : 0, each = io - stag * (n - 1);
   const clamp = v => Math.max(0, Math.min(1, v));
   const [x0, y0] = pos, base = y0 + TEXT.baseline;
+  const [vx, vy] = TEXT_DIR[settings.textDir];
+  // vertical slides travel the line box behind a mask; sideways ones a
+  // shorter distance, fading so passing letters don't pile up
+  const masked = style === 'slide' && vx === 0;
+  const dist = vx === 0 ? TEXT.box : TEXT.size * 0.5;
 
   ctx.save();
-  ctx.font = TEXT_FONT;
+  ctx.font = textFont();
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   ctx.fillStyle = settings.tc;
-  if (settings.textStyle === 'rise') {
-    // letters rise into, and out of, the word's own line box
-    ctx.beginPath(); ctx.rect(0, y0, 1000, TEXT.box); ctx.clip();
-  }
+  if (masked) { ctx.beginPath(); ctx.rect(0, y0, 1000, TEXT.box); ctx.clip(); }
   word.forEach(({ ch, x }, i) => {
-    let dy = 0, alpha = 1;
-    if (settings.textStyle === 'type') {
-      // typed on left to right, deleted right to left
-      if (local < io * i / n || local >= outStart + io * (n - 1 - i) / n) return;
+    const o = cont ? i : n - 1 - i; // this letter's place in the exit order
+    let dx = 0, dy = 0, alpha = 1;
+    if (style === 'type') {
+      // typed on left to right; erased from the left (Continue) or the right
+      if (local < io * i / n || local >= outStart + io * o / n) return;
     } else {
       const kIn = ease(clamp((local - i * stag) / each));
-      const kOut = ease(clamp((local - outStart - i * stag) / each));
-      if (settings.textStyle === 'rise') dy = (1 - kIn) * TEXT.box - kOut * TEXT.box;
-      else alpha = clamp(kIn - kOut);
+      const kOut = ease(clamp((local - outStart - o * stag) / each));
+      if (style === 'slide') {
+        const d = (kIn - 1 + (cont ? kOut : -kOut)) * dist;
+        dx = vx * d; dy = vy * d;
+      }
+      if (!masked) alpha = Math.min(kIn, 1 - kOut);
     }
     if (alpha <= 0) return;
     ctx.globalAlpha = alpha;
-    ctx.fillText(ch, x0 + x, base + dy);
+    ctx.fillText(ch, x0 + x + dx, base + dy);
   });
   ctx.restore();
 }
@@ -807,12 +881,20 @@ bindSeg('overlap', v => {
 const holdEl = document.getElementById('hold');
 let textBefore = null;
 bindRange('textIn', 'textIn', v => v.toFixed(2) + 's');
-bindSeg('textStyle', v => settings.textStyle = v);
+bindRange('textSpread', 'textSpread', v => Math.round(v * 100) + '%');
+const textDirField = document.getElementById('textDirField');
+const syncTextFields = () => {
+  document.querySelectorAll('.textOpt').forEach(f => f.classList.toggle('off', !settings.text));
+  if (settings.textStyle !== 'slide') textDirField.classList.add('off');
+};
+bindSeg('textStyle', v => { settings.textStyle = v; syncTextFields(); });
+bindSeg('textDir', v => settings.textDir = v);
+bindSeg('textExit', v => settings.textExit = v);
+bindSeg('textWeight', v => { settings.textWeight = +v; loadTextFont(); });
 bindSeg('textMode', v => {
   const phase = (clock % loopLen()) / loopLen();
   settings.text = v === 'on';
-  for (const id of ['textStyleField', 'textInField', 'textColourField'])
-    document.getElementById(id).classList.toggle('off', !settings.text);
+  syncTextFields();
   document.getElementById('holdLabel').textContent = settings.text ? 'Text hold' : 'Hold';
   if (settings.text) {
     textBefore = { hold: holdEl.value, trans: transEl.value, noOverlap: settings.noOverlap };
@@ -826,13 +908,50 @@ bindSeg('textMode', v => {
   clock = phase * loopLen();
 });
 
-// Letter positions are measured once the font is ready.
-document.fonts.load(TEXT_FONT).catch(() => []).then(faces => {
-  glyphCache = new Map();
-  if (!faces.some(f => f.family.replace(/"/g, '') === 'Value Text'))
-    document.getElementById('fontNote').textContent =
-      'Helvetica Now Display isn’t installed on this device — words use Helvetica Neue.';
-});
+// Letter positions are measured once the font is ready. Where the chosen
+// weight isn't installed, its font file can be loaded for this session.
+const fontNote = document.getElementById('fontNote');
+const fontLoad = document.getElementById('fontLoad'), fontFile = document.getElementById('fontFile');
+const WEIGHT_NAME = { 300: 'Light', 400: 'Regular', 500: 'Medium' };
+function loadTextFont() {
+  const w = settings.textWeight;
+  document.fonts.load(textFont()).catch(() => []).then(faces => {
+    if (w !== settings.textWeight) return;
+    glyphCache = new Map();
+    const ok = faces.some(f => f.family.replace(/"/g, '') === 'Value Text' &&
+      f.status === 'loaded' && +f.weight === w);
+    fontNote.textContent = ok ? '' :
+      `Helvetica Now Display ${WEIGHT_NAME[w]} isn’t installed on this device — words use Helvetica Neue.`;
+    fontLoad.hidden = ok;
+  });
+}
+loadTextFont();
+
+// Weight from the font's OS/2 table (falling back to its file name),
+// snapped to the three weights on offer.
+function fontWeightOf(buf, name) {
+  let w = 0;
+  try {
+    const d = new DataView(buf), tag = d.getUint32(0);
+    if (tag === 0x00010000 || tag === 0x4f54544f || tag === 0x74727565)
+      for (let i = 0, n = d.getUint16(4); i < n; i++)
+        if (d.getUint32(12 + 16 * i) === 0x4f532f32) w = d.getUint16(d.getUint32(20 + 16 * i) + 4);
+  } catch (_) {}
+  if (!w) w = /light|-lt\b/i.test(name) ? 300 : /medium|-md\b/i.test(name) ? 500 : 400;
+  return w < 362 ? 300 : w < 450 ? 400 : 500;
+}
+fontLoad.onclick = () => fontFile.click();
+fontFile.onchange = async () => {
+  for (const file of fontFile.files) {
+    try {
+      const buf = await file.arrayBuffer();
+      const face = new FontFace('Value Text', buf, { weight: String(fontWeightOf(buf, file.name)) });
+      document.fonts.add(await face.load());
+    } catch (e) { console.error(e); }
+  }
+  fontFile.value = '';
+  loadTextFont();
+};
 
 // Colours — picker and hex field stay in sync; hex accepts #rgb or #rrggbb.
 const fgPick = document.getElementById('fgPick'), fgHex = document.getElementById('fgHex');
@@ -845,12 +964,17 @@ function normHex(v) {
   if (/^#[0-9a-f]{3}$/.test(v)) v = '#' + [...v.slice(1)].map(c => c + c).join('');
   return /^#[0-9a-f]{6}$/.test(v) ? v : null;
 }
+// Brand colours, listed at the top of the colour picker.
+const BRAND = [
+  ['F Black', '#1f1f1f'], ['F White', '#f8f8f8'], ['F Red', '#f45944'],
+  ['Pure Black', '#000000'], ['Pure White', '#ffffff'],
+];
 function setColour(key, v, fromPicker) {
   settings[key] = v;
   const [pick, hex] = COLOUR_FIELDS[key];
   pick.style.background = v;
   if (document.activeElement !== hex) hex.value = v;
-  if (!fromPicker && picker.key === key) picker.load(v);
+  if (picker.key === key) { if (!fromPicker) picker.load(v); picker.mark(); }
 }
 function bindColour(key, pick, hex) {
   pick.onpointerdown = e => e.stopPropagation();
@@ -878,7 +1002,17 @@ const picker = (() => {
   const sv = document.getElementById('pkSV'), svKnob = document.getElementById('pkSVKnob');
   const hue = document.getElementById('pkHue'), hueKnob = document.getElementById('pkHueKnob');
   const chip = document.getElementById('pkChip'), hexOut = document.getElementById('pkHex');
+  const brand = document.getElementById('pkBrand');
   const api = { key: null, h: 0, s: 0, v: 0, anchor: null };
+
+  const brandBtns = BRAND.map(([name, hex]) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<i style="background:${hex}"></i><span>${name}</span><span>${hex}</span>`;
+    b.onclick = () => setColour(api.key, hex);
+    brand.appendChild(b);
+    return b;
+  });
+  api.mark = () => brandBtns.forEach((b, i) => b.classList.toggle('on', BRAND[i][1] === settings[api.key]));
 
   function paint() {
     sv.style.background = hsvToHex(api.h, 1, 1);
@@ -929,6 +1063,7 @@ const picker = (() => {
     api.key = key; api.anchor = anchor;
     anchor.classList.add('open');
     api.load(settings[key]);
+    api.mark();
     el.classList.add('show');
     place();
   };
